@@ -69,12 +69,51 @@ erDiagram
         varchar variant_name "Varyant Tanimi"
         numeric purchase_price "Alis Fiyati"
         numeric sale_price "Satis Fiyati"
-        integer stock_quantity "Fiili Depo Stogu"
-        integer reserved_stock "Rezerve Siparis Stogu"
+        integer stock_quantity "Toplam Konsolide Stok"
+        integer reserved_stock "Toplam Rezerve Stok"
         jsonb attributes "Renk, Beden vb."
         timestamp created_at
         timestamp updated_at
         bigint version
+    }
+
+    %% Tenant Schema - Coklu Depo & Stok Yonetimi
+    WAREHOUSES {
+        bigint id PK
+        varchar code UK "Depo Kodu (WH-01)"
+        varchar name "Depo Adi"
+        varchar location "Lokasyon"
+        text address "Acik Adres"
+        boolean is_active "Aktiflik"
+        timestamp created_at
+        timestamp updated_at
+        bigint version
+    }
+
+    WAREHOUSE_STOCKS {
+        bigint id PK
+        bigint warehouse_id FK "Depo Referansi"
+        bigint variant_id FK "Varyant Referansi"
+        integer quantity "Depodaki Fiili Stok"
+        integer reserved_stock "Rezerve Stok"
+        varchar shelf_location "Raf Kodu"
+        timestamp created_at
+        timestamp updated_at
+        bigint version
+    }
+
+    STOCK_MOVEMENTS {
+        bigint id PK
+        varchar movement_number UK "Hareket No (SM-...)"
+        varchar movement_type "GOODS_RECEIPT / GOODS_ISSUE / TRANSFER / ADJUSTMENT"
+        bigint source_warehouse_id FK "Cikis Deposu (Opsiyonel)"
+        bigint target_warehouse_id FK "Varis Deposu (Opsiyonel)"
+        bigint variant_id FK "Varyant Referansi"
+        integer quantity "Hareket Miktari"
+        varchar reference_type "WAYBILL / ORDER / INITIAL_STOCK"
+        bigint reference_id "Referans Belge ID"
+        varchar performed_by "Islemi Yapan"
+        timestamp created_at
     }
 
     %% Tenant Schema - Cari Hesap
@@ -158,6 +197,8 @@ erDiagram
         varchar type "DISPATCH / RECEIPT"
         bigint partner_id FK "Cari Referansi"
         bigint order_id FK "Iliskili Siparis (Opsiyonel)"
+        bigint source_warehouse_id FK "Cikis Deposu (Opsiyonel)"
+        bigint target_warehouse_id FK "Varis Deposu (Opsiyonel)"
         varchar status "DRAFT / DISPATCHED / DELIVERED"
         timestamp dispatch_date
         varchar carrier_company "Tasiyici Firma"
@@ -206,9 +247,16 @@ erDiagram
     %% Iliskiler
     CATEGORIES ||--o{ PRODUCTS : "icerir (1:N)"
     PRODUCTS ||--|{ PRODUCT_VARIANTS : "varyantlari (1:N)"
+    WAREHOUSES ||--o{ WAREHOUSE_STOCKS : "stok_barindirir (1:N)"
+    PRODUCT_VARIANTS ||--o{ WAREHOUSE_STOCKS : "depolara_dagilir (1:N)"
+    PRODUCT_VARIANTS ||--o{ STOCK_MOVEMENTS : "hareket_gorur (1:N)"
+    WAREHOUSES |o--o{ STOCK_MOVEMENTS : "cikis_yapar (0..1:N)"
+    WAREHOUSES |o--o{ STOCK_MOVEMENTS : "giris_alir (0..1:N)"
     BUSINESS_PARTNERS ||--o{ QUOTATIONS : "teklif verilir (1:N)"
     BUSINESS_PARTNERS ||--o{ ORDERS : "siparis verilir (1:N)"
     BUSINESS_PARTNERS ||--o{ WAYBILLS : "sevk edilir (1:N)"
+    WAREHOUSES |o--o{ WAYBILLS : "cikis_deposu (0..1:N)"
+    WAREHOUSES |o--o{ WAYBILLS : "varis_deposu (0..1:N)"
     QUOTATIONS ||--|{ QUOTATION_ITEMS : "satirlari (1:N)"
     PRODUCT_VARIANTS ||--o{ QUOTATION_ITEMS : "secilir (1:N)"
     QUOTATIONS |o--o{ ORDERS : "donusturulur (0..1:N)"
@@ -580,8 +628,8 @@ erDiagram
         <div class="workflow-step">
           <div class="step-num">4</div>
           <div class="step-body">
-            <h4>İrsaliye (Waybill) & Depodan Fiili Çıkış</h4>
-            <p>Sipariş sevk edildiğinde <code>waybills</code> oluşturulur (<code>status = DISPATCHED</code>). Varyantın <code>reserved_stock</code> değeri düşürülürken, fiziksel depodaki <code>stock_quantity</code> kalıcı olarak eksiltilir.</p>
+            <h4>İrsaliye (Waybill), Çıkış Deposu & Stok Hareket Kütüğü (Stock Movement)</h4>
+            <p>Sipariş sevk edildiğinde <code>waybills</code> oluşturulur, çıkış deposu (<code>source_warehouse_id</code>) belirlenir. İrsaliye sevk edildiğinde (<code>status = DISPATCHED</code>), ilgili depodaki <code>warehouse_stocks.quantity</code> ve varyantın konsolide <code>stock_quantity</code> miktarı düşürülür. Eş zamanlı olarak <code>stock_movements</code> tablosuna kurumsal denetim kütüğü (<code>GOODS_ISSUE</code>) yazılır.</p>
           </div>
         </div>
         <div class="workflow-step">
@@ -625,6 +673,16 @@ erDiagram
             <span class="tag">Spring Security 6</span>
             <span class="tag">JWT (HMAC-SHA256)</span>
             <span class="tag">BCrypt</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>📦 Çoklu Depo & Stok Hareket Kütüğü (Ledger)</h3>
+          <p>Her kiracı için çoklu depo (<code>warehouses</code>) desteği. Her varyantın depo bazlı bakiyesi (<code>warehouse_stocks</code>) ve tüm mal giriş/çıkış/transfer işlemlerinin izlenebilir kütüğü (<code>stock_movements</code>) tutulur.</p>
+          <div class="tags">
+            <span class="tag">Multi-Warehouse</span>
+            <span class="tag">Audit Ledger</span>
+            <span class="tag">Stock Movements</span>
           </div>
         </div>
       </div>
@@ -704,6 +762,44 @@ erDiagram
           </div>
           <div class="faq-highlight">
             ⚡ <strong>Sonuç:</strong> Veritabanı seviyesinde %100 ACID veri bütünlüğü ve sıfır tutarsızlık garantilendi.
+          </div>
+        </div>
+
+        <!-- Soru 5 -->
+        <div class="faq-card">
+          <div class="faq-q">
+            <span>📦</span>
+            <h4>Stoğu Doğrudan Product (Ana Ürün) Kartına Yazmak Mantıklı mı? Neden Varyantta (SKU)?</h4>
+          </div>
+          <div class="faq-a">
+            <strong>Kesinlikle mantıklı değildir ve büyük bir anti-pattern'dir!</strong>
+            <br><br>
+            • <strong>Fiziksel Gerçeklik:</strong> Depodaki rafta soyut bir <em>"Slim Fit Polo Tişört"</em> bulunmaz; rafta fiziki olarak <em>"Kırmızı - M"</em> veya <em>"Mavi - L"</em> durur.
+            <br>
+            • <strong>Stok Yönetimi İmkansızlığı:</strong> Stoğu ana ürüne yazarsan "Toplam 100 tişört var" dersin ama müşteri "2 adet Kırmızı M" istediğinde rafta var mı bilemezsin. Farklı varyantların barkodları, alış/satış fiyatları ve stokları farklıdır.
+          </div>
+          <div class="faq-highlight">
+            📊 <strong>Bakiye (Snapshot) vs Hareket (Ledger):</strong> Varyantta <code>stock_quantity</code> tutmak, O(1) hızında "Stok yeterli mi?" kontrolü ve satır bazlı pessimistic lock için zorunludur. Çok depolu ERP yapılarında ise bu bakiye <code>warehouse_stocks (depo_id, varyant_id, bakiye)</code> tablosuna taşınır.
+          </div>
+        </div>
+
+        <!-- Soru 6 -->
+        <div class="faq-card">
+          <div class="faq-q">
+            <span>🏢</span>
+            <h4>Çoklu Depo (Multi-Warehouse) ve Stok Hareket Kütüğü (Ledger) Mimarisi Nasıl Çalışır?</h4>
+          </div>
+          <div class="faq-a">
+            İşletmenin birden fazla lokasyonu (Merkez Depo, AVM Mağaza Deposu, Lojistik Üssü) olduğunda stok yönetimi 3 seviyede ölçeklenir:
+            <br><br>
+            • <strong>1. Depo Tanımları (<code>warehouses</code>):</strong> Her deponun kodu, yetkilisi ve fiziksel adresi tanımlanır.
+            <br>
+            • <strong>2. Depo-Varyant Bakiyesi (<code>warehouse_stocks</code>):</strong> Her varyantın hangi depoda kaç adet fiili stoğu ve bekleyen rezerve stoğu olduğu saklanır (M:N ilişki).
+            <br>
+            • <strong>3. Kurumsal Stok Kütüğü (<code>stock_movements</code>):</strong> Depolar arası transfer (virman), mal kabul, sevk irsaliyesi veya sayım farkı yapıldığında hareket türü, çıkış ve varış deposuyla birlikte silinemez bir audit log olarak kaydedilir.
+          </div>
+          <div class="faq-highlight">
+            🚀 <strong>Ölçeklenebilirlik:</strong> Hem tek tıkla "Merkez depoda kaç adet kaldı?" sorusuna yanıt verilir hem de geriye dönük konsolide toplam bakiye (<code>product_variants.stock_quantity</code>) korunarak mevcut API ve dashboardlar kesintisiz çalışır.
           </div>
         </div>
       </div>
@@ -887,26 +983,30 @@ erDiagram
         tables.add(createTableMeta("categories", "tenant_*", "Ürün kategorileri", List.of("id (PK)", "code (UK)", "name", "description")));
         tables.add(createTableMeta("products", "tenant_*", "Ana ürün şablonları (Product Template)", List.of("id (PK)", "category_id (FK)", "code (UK)", "name", "base_unit", "attributes (JSONB)")));
         tables.add(createTableMeta("product_variants", "tenant_*", "Stok tutulan ürün varyantları (SKU)", List.of("id (PK)", "product_id (FK)", "sku (UK)", "barcode", "purchase_price", "sale_price", "stock_quantity", "reserved_stock")));
+        tables.add(createTableMeta("warehouses", "tenant_*", "Çoklu depo tanımları (Lokasyon & Şube)", List.of("id (PK)", "code (UK)", "name", "location", "is_active")));
+        tables.add(createTableMeta("warehouse_stocks", "tenant_*", "Depo bazlı varyant stok bakiyeleri", List.of("id (PK)", "warehouse_id (FK)", "variant_id (FK)", "quantity", "reserved_stock", "shelf_location")));
+        tables.add(createTableMeta("stock_movements", "tenant_*", "Stok hareket kütüğü (Audit Ledger)", List.of("id (PK)", "movement_number (UK)", "movement_type", "source_warehouse_id (FK)", "target_warehouse_id (FK)", "variant_id (FK)", "quantity", "reference_type")));
         tables.add(createTableMeta("business_partners", "tenant_*", "Cari hesaplar (Müşteri & Tedarikçi)", List.of("id (PK)", "partner_type", "name", "tax_number", "email", "metadata (JSONB)")));
         tables.add(createTableMeta("quotations", "tenant_*", "B2B Satış/Alış Teklifleri", List.of("id (PK)", "quotation_number (UK)", "partner_id (FK)", "status", "total_amount")));
         tables.add(createTableMeta("quotation_items", "tenant_*", "Teklif kalemleri", List.of("id (PK)", "quotation_id (FK)", "variant_id (FK)", "quantity", "unit_price", "subtotal")));
         tables.add(createTableMeta("orders", "tenant_*", "Resmi siparişler", List.of("id (PK)", "order_number (UK)", "partner_id (FK)", "quotation_id (FK)", "status", "total_amount")));
         tables.add(createTableMeta("order_items", "tenant_*", "Sipariş kalemleri", List.of("id (PK)", "order_id (FK)", "variant_id (FK)", "quantity", "unit_price", "subtotal")));
-        tables.add(createTableMeta("waybills", "tenant_*", "Sevk ve alış irsaliyeleri", List.of("id (PK)", "waybill_number (UK)", "partner_id (FK)", "order_id (FK)", "status", "tracking_number")));
+        tables.add(createTableMeta("waybills", "tenant_*", "Sevk ve alış irsaliyeleri (Depo bağlantılı)", List.of("id (PK)", "waybill_number (UK)", "partner_id (FK)", "source_warehouse_id (FK)", "target_warehouse_id (FK)", "status", "tracking_number")));
         tables.add(createTableMeta("waybill_items", "tenant_*", "İrsaliye sevk kalemleri", List.of("id (PK)", "waybill_id (FK)", "variant_id (FK)", "quantity", "unit_price")));
         tables.add(createTableMeta("users", "tenant_*", "Kiracı bazlı kullanıcı kimlik ve yetki", List.of("id (PK)", "username (UK)", "email (UK)", "role", "is_active")));
         tables.add(createTableMeta("audit_logs", "tenant_*", "İşlem denetim günlükleri (JSON diff)", List.of("id (PK)", "action", "entity_type", "entity_id", "performed_by", "details (JSONB)")));
         root.put("tables", tables);
 
-        // Süreç Akışı (Order-to-Cash)
+        // Süreç Akışı (Order-to-Cash & Multi-Warehouse)
         List<String> workflow = List.of(
                 "1. Kategori ve Ürün Şablonu (Product) tanımlanır.",
                 "2. Ürüne ait stok birimleri olan Varyantlar (ProductVariant - SKU, Barkod, Fiyat) oluşturulur.",
-                "3. Cari Hesap (BusinessPartner - Müşteri/Tedarikçi) kaydı açılır.",
-                "4. Müşteriye Teklif (Quotation) hazırlanır. Teklif onaylandığında Siparişe dönüştürülür.",
-                "5. Sipariş Onaylandığında (CONFIRMED), sistem varyantların reserved_stock miktarını artırarak stok kilitler ve RabbitMQ event yayınlar.",
-                "6. Sipariş sevk edilmek üzere İrsaliye'ye (Waybill) dönüştürülür. İrsaliye sevk edildiğinde (DISPATCHED) rezerve stok düşülür ve depodaki fiili stok_quantity eksiltilir.",
-                "7. Her CRUD ve durum adımı audit_logs tablosunda JSONB veri diff'i ile arşivlenir."
+                "3. Çoklu Depo (Warehouse) kartları açılır ve varyant stokları warehouse_stocks üzerinden lokasyon bazında dağıtılır.",
+                "4. Cari Hesap (BusinessPartner - Müşteri/Tedarikçi) kaydı açılır.",
+                "5. Müşteriye Teklif (Quotation) hazırlanır. Teklif onaylandığında Siparişe dönüştürülür.",
+                "6. Sipariş Onaylandığında (CONFIRMED), sistem varyantların reserved_stock miktarını artırarak stok kilitler ve RabbitMQ event yayınlar.",
+                "7. Sipariş sevk edilmek üzere İrsaliye'ye (Waybill) dönüştürülür. Çıkış deposu seçilir (source_warehouse_id). İrsaliye sevk edildiğinde (DISPATCHED) rezerve stok düşülür, depodaki fiili stok_quantity eksiltilir ve stock_movements tablosuna hareket kütüğü yazılır.",
+                "8. Her CRUD ve durum adımı audit_logs tablosunda JSONB veri diff'i ile arşivlenir."
         );
         root.put("orderToCashWorkflow", workflow);
 

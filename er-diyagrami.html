@@ -425,12 +425,51 @@ erDiagram
         varchar variant_name "Varyant Tanimi (Renk/Beden)"
         numeric purchase_price "Alis Fiyati"
         numeric sale_price "Satis Fiyati"
-        integer stock_quantity "Fiili Depo Stogu"
-        integer reserved_stock "Rezerve Siparis Stogu"
+        integer stock_quantity "Toplam Konsolide Stok"
+        integer reserved_stock "Toplam Rezerve Stok"
         jsonb attributes "Renk, Beden vb."
         timestamp created_at
         timestamp updated_at
         bigint version
+    }
+
+    %% Tenant Schema - Coklu Depo & Stok Yonetimi
+    WAREHOUSES {
+        bigint id PK
+        varchar code UK "Depo Kodu (WH-01)"
+        varchar name "Depo Adi"
+        varchar location "Lokasyon/Sehir"
+        text address "Acik Adres"
+        boolean is_active "Aktiflik"
+        timestamp created_at
+        timestamp updated_at
+        bigint version
+    }
+
+    WAREHOUSE_STOCKS {
+        bigint id PK
+        bigint warehouse_id FK "Depo Referansi"
+        bigint variant_id FK "Varyant Referansi"
+        integer quantity "Depodaki Fiili Stok"
+        integer reserved_stock "Rezerve Stok"
+        varchar shelf_location "Raf Kodu"
+        timestamp created_at
+        timestamp updated_at
+        bigint version
+    }
+
+    STOCK_MOVEMENTS {
+        bigint id PK
+        varchar movement_number UK "Hareket No (SM-...)"
+        varchar movement_type "GOODS_RECEIPT / GOODS_ISSUE / TRANSFER / ADJUSTMENT"
+        bigint source_warehouse_id FK "Cikis Deposu (Opsiyonel)"
+        bigint target_warehouse_id FK "Varis Deposu (Opsiyonel)"
+        bigint variant_id FK "Varyant Referansi"
+        integer quantity "Hareket Miktari"
+        varchar reference_type "WAYBILL / ORDER / INITIAL_STOCK"
+        bigint reference_id "Referans Belge ID"
+        varchar performed_by "Islemi Yapan"
+        timestamp created_at
     }
 
     %% Tenant Schema - Cari Hesap
@@ -514,6 +553,8 @@ erDiagram
         varchar type "DISPATCH / RECEIPT"
         bigint partner_id FK "Cari Referansi"
         bigint order_id FK "Iliskili Siparis (Opsiyonel)"
+        bigint source_warehouse_id FK "Cikis Deposu (Opsiyonel)"
+        bigint target_warehouse_id FK "Varis Deposu (Opsiyonel)"
         varchar status "DRAFT / DISPATCHED / DELIVERED"
         timestamp dispatch_date
         varchar carrier_company "Tasiyici Lojistik Firma"
@@ -562,9 +603,16 @@ erDiagram
     %% Iliskiler
     CATEGORIES ||--o{ PRODUCTS : "icerir (1:N)"
     PRODUCTS ||--|{ PRODUCT_VARIANTS : "varyantlari (1:N)"
+    WAREHOUSES ||--o{ WAREHOUSE_STOCKS : "stok_barindirir (1:N)"
+    PRODUCT_VARIANTS ||--o{ WAREHOUSE_STOCKS : "depolara_dagilir (1:N)"
+    PRODUCT_VARIANTS ||--o{ STOCK_MOVEMENTS : "hareket_gorur (1:N)"
+    WAREHOUSES |o--o{ STOCK_MOVEMENTS : "cikis_yapar (0..1:N)"
+    WAREHOUSES |o--o{ STOCK_MOVEMENTS : "giris_alir (0..1:N)"
     BUSINESS_PARTNERS ||--o{ QUOTATIONS : "teklif verilir (1:N)"
     BUSINESS_PARTNERS ||--o{ ORDERS : "siparis verilir (1:N)"
     BUSINESS_PARTNERS ||--o{ WAYBILLS : "sevk edilir (1:N)"
+    WAREHOUSES |o--o{ WAYBILLS : "cikis_deposu (0..1:N)"
+    WAREHOUSES |o--o{ WAYBILLS : "varis_deposu (0..1:N)"
     QUOTATIONS ||--|{ QUOTATION_ITEMS : "satirlari (1:N)"
     PRODUCT_VARIANTS ||--o{ QUOTATION_ITEMS : "secilir (1:N)"
     QUOTATIONS |o--o{ ORDERS : "donusturulur (0..1:N)"
@@ -615,8 +663,8 @@ erDiagram
           <div class="workflow-step">
             <div class="step-num">4</div>
             <div class="step-body">
-              <h4>🚚 İrsaliye (Waybill) & Depodan Fiili Çıkış</h4>
-              <p>Sipariş sevk edildiğinde <code>waybills</code> oluşturulur (<code>status = DISPATCHED</code>). Varyantın <code>reserved_stock</code> değeri serbest bırakılırken, depodaki <code>stock_quantity</code> kalıcı olarak eksiltilir.</p>
+              <h4>🚚 İrsaliye (Waybill), Çıkış Deposu & Stok Hareket Kütüğü (Stock Movement)</h4>
+              <p>Sipariş sevk edildiğinde <code>waybills</code> oluşturulur, çıkış deposu (<code>source_warehouse_id</code>) belirlenir. İrsaliye sevk edildiğinde (<code>status = DISPATCHED</code>), ilgili depodaki <code>warehouse_stocks.quantity</code> ve varyantın konsolide <code>stock_quantity</code> miktarı düşürülür. Eş zamanlı olarak <code>stock_movements</code> tablosuna kurumsal denetim kütüğü (<code>GOODS_ISSUE</code>) yazılır.</p>
             </div>
           </div>
 
@@ -730,6 +778,44 @@ erDiagram
           </div>
           <div class="faq-highlight">
             ⚡ <strong>Sonuç:</strong> Veritabanı seviyesinde %100 ACID veri bütünlüğü ve sıfır tutarsızlık garantilendi.
+          </div>
+        </div>
+
+        <!-- Soru 5 -->
+        <div class="faq-card">
+          <div class="faq-q">
+            <span>📦</span>
+            <h4>Stoğu Doğrudan Product (Ana Ürün) Kartına Yazmak Mantıklı mı? Neden Varyantta (SKU)?</h4>
+          </div>
+          <div class="faq-a">
+            <strong>Kesinlikle mantıklı değildir ve büyük bir anti-pattern'dir!</strong>
+            <br><br>
+            • <strong>Fiziksel Gerçeklik:</strong> Depodaki rafta soyut bir <em>"Slim Fit Polo Tişört"</em> bulunmaz; rafta fiziki olarak <em>"Kırmızı - M"</em> veya <em>"Mavi - L"</em> durur.
+            <br>
+            • <strong>Stok Yönetimi İmkansızlığı:</strong> Stoğu ana ürüne yazarsan "Toplam 100 tişört var" dersin ama müşteri "2 adet Kırmızı M" istediğinde rafta var mı bilemezsin. Farklı varyantların barkodları, alış/satış fiyatları ve stokları farklıdır.
+          </div>
+          <div class="faq-highlight">
+            📊 <strong>Bakiye (Snapshot) vs Hareket (Ledger):</strong> Varyantta <code>stock_quantity</code> tutmak, O(1) hızında "Stok yeterli mi?" kontrolü ve satır bazlı pessimistic lock için zorunludur. Çok depolu ERP yapılarında ise bu bakiye <code>warehouse_stocks (depo_id, varyant_id, bakiye)</code> tablosuna taşınır.
+          </div>
+        </div>
+
+        <!-- Soru 6 -->
+        <div class="faq-card">
+          <div class="faq-q">
+            <span>🏢</span>
+            <h4>Çoklu Depo (Multi-Warehouse) ve Stok Hareket Kütüğü (Ledger) Mimarisi Nasıl Çalışır?</h4>
+          </div>
+          <div class="faq-a">
+            İşletmenin birden fazla lokasyonu (Merkez Depo, AVM Mağaza Deposu, Lojistik Üssü) olduğunda stok yönetimi 3 seviyede ölçeklenir:
+            <br><br>
+            • <strong>1. Depo Tanımları (<code>warehouses</code>):</strong> Her deponun kodu, yetkilisi ve fiziksel adresi tanımlanır.
+            <br>
+            • <strong>2. Depo-Varyant Bakiyesi (<code>warehouse_stocks</code>):</strong> Her varyantın hangi depoda kaç adet fiili stoğu ve bekleyen rezerve stoğu olduğu saklanır (M:N ilişki).
+            <br>
+            • <strong>3. Kurumsal Stok Kütüğü (<code>stock_movements</code>):</strong> Depolar arası transfer (virman), mal kabul, sevk irsaliyesi veya sayım farkı yapıldığında hareket türü, çıkış ve varış deposuyla birlikte silinemez bir audit log olarak kaydedilir.
+          </div>
+          <div class="faq-highlight">
+            🚀 <strong>Ölçeklenebilirlik:</strong> Hem tek tıkla "Merkez depoda kaç adet kaldı?" sorusuna yanıt verilir hem de geriye dönük konsolide toplam bakiye (<code>product_variants.stock_quantity</code>) korunarak mevcut API ve dashboardlar kesintisiz çalışır.
           </div>
         </div>
       </div>

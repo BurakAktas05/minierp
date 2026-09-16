@@ -7,12 +7,8 @@ import com.minierp.core.security.entity.UserRole;
 import com.minierp.core.security.repository.UserRepository;
 import com.minierp.modules.audit.entity.AuditLog;
 import com.minierp.modules.audit.repository.AuditLogRepository;
-import com.minierp.modules.inventory.entity.Category;
-import com.minierp.modules.inventory.entity.Product;
-import com.minierp.modules.inventory.entity.ProductVariant;
-import com.minierp.modules.inventory.repository.CategoryRepository;
-import com.minierp.modules.inventory.repository.ProductRepository;
-import com.minierp.modules.inventory.repository.ProductVariantRepository;
+import com.minierp.modules.inventory.entity.*;
+import com.minierp.modules.inventory.repository.*;
 import com.minierp.modules.order.entity.Order;
 import com.minierp.modules.order.entity.OrderItem;
 import com.minierp.modules.order.entity.OrderStatus;
@@ -51,9 +47,9 @@ import java.util.Map;
 /**
  * Uygulama ilk ayağa kalktığında:
  * 1. Master şemada başlangıç kiracılarını doğrular.
- * 2. Her kiracının PostgreSQL şemasını oluşturup Flyway ile tablolarını kurar.
- * 3. Kiracı şemalarında birbiriyle doğrudan bağlantılı B2B Tedarik Zinciri
- *    (Kumaş Üreticisi -> Hazır Giyim İmalatçısı -> Perakende Mağazacılık) mock/seed verilerini yükler.
+ * 2. Her kiracı şemasını Flyway ile kurar.
+ * 3. Çoklu Depo (Warehouses), Stok Bakiyeleri (Warehouse Stocks), Stok Hareketleri (Stock Movements)
+ *    ve B2B Tedarik Zinciri verilerini tohumlar.
  */
 @Slf4j
 @Component
@@ -66,6 +62,9 @@ public class DataInitializer implements ApplicationRunner {
     private final CategoryRepository categoryRepository;
     private final ProductRepository productRepository;
     private final ProductVariantRepository productVariantRepository;
+    private final WarehouseRepository warehouseRepository;
+    private final WarehouseStockRepository warehouseStockRepository;
+    private final StockMovementRepository stockMovementRepository;
     private final BusinessPartnerRepository businessPartnerRepository;
     private final QuotationRepository quotationRepository;
     private final OrderRepository orderRepository;
@@ -182,6 +181,29 @@ public class DataInitializer implements ApplicationRunner {
         userRepository.saveAll(List.of(admin, manager, user));
     }
 
+    private WarehouseStock createWarehouseStock(Warehouse warehouse, ProductVariant variant, int quantity, int reserved, String shelf) {
+        return warehouseStockRepository.save(WarehouseStock.builder()
+                .warehouse(warehouse)
+                .variant(variant)
+                .quantity(quantity)
+                .reservedStock(reserved)
+                .shelfLocation(shelf)
+                .build());
+    }
+
+    private StockMovement recordInitialMovement(Warehouse warehouse, ProductVariant variant, int quantity, String movementNum) {
+        return stockMovementRepository.save(StockMovement.builder()
+                .movementNumber(movementNum)
+                .movementType(StockMovementType.GOODS_RECEIPT)
+                .targetWarehouse(warehouse)
+                .variant(variant)
+                .quantity(quantity)
+                .referenceType("INITIAL_STOCK")
+                .notes("Sistem kurulumu açılış stok sayım fişi.")
+                .performedBy("admin")
+                .build());
+    }
+
     // =========================================================================
     // 1. KİRACI: ATLAS TEKSTİL & DOKUMA SANAYİ A.Ş. (Kumaş & İplik Üreticisi)
     // =========================================================================
@@ -254,6 +276,37 @@ public class DataInitializer implements ApplicationRunner {
         prodSuprem.addVariant(varSupremBlk);
         productRepository.save(prodSuprem);
 
+        // Depolar (Çoklu Depo Desteği)
+        Warehouse whAtlasMain = warehouseRepository.save(Warehouse.builder()
+                .code("WH-ATLAS-01")
+                .name("Hadımköy Merkez Dokuma Deposu")
+                .location("İstanbul / Hadımköy")
+                .address("Dokumacılar Sanayi Sitesi A Blok No:12 Hadımköy/İstanbul")
+                .isActive(true)
+                .build());
+
+        Warehouse whAtlasEge = warehouseRepository.save(Warehouse.builder()
+                .code("WH-ATLAS-02")
+                .name("Ege Bölge Hammadde & Lojistik Deposu")
+                .location("İzmir / Gaziemir")
+                .address("Serbest Bölge 4. Cadde No:8 Gaziemir/İzmir")
+                .isActive(true)
+                .build());
+
+        // Depo Stok Bakiyeleri ve Hareketler
+        createWarehouseStock(whAtlasMain, varOxfBlu, 100, 30, "RAF-A1");
+        createWarehouseStock(whAtlasEge, varOxfBlu, 50, 0, "RAF-E1");
+        recordInitialMovement(whAtlasMain, varOxfBlu, 100, "SM-2026-TEK-001");
+
+        createWarehouseStock(whAtlasMain, varOxfWht, 80, 0, "RAF-A2");
+        createWarehouseStock(whAtlasEge, varOxfWht, 40, 0, "RAF-E2");
+
+        createWarehouseStock(whAtlasMain, varDenimInd, 70, 25, "RAF-B1");
+        createWarehouseStock(whAtlasEge, varDenimInd, 40, 0, "RAF-E3");
+
+        createWarehouseStock(whAtlasMain, varSupremBlk, 140, 50, "RAF-C1");
+        createWarehouseStock(whAtlasEge, varSupremBlk, 60, 0, "RAF-E4");
+
         // Cari Hesaplar (Entegre İşletmeler)
         BusinessPartner partnerVogue = businessPartnerRepository.save(BusinessPartner.builder()
                 .name("Vogue Hazır Giyim & Konfeksiyon Ltd.")
@@ -317,6 +370,7 @@ public class DataInitializer implements ApplicationRunner {
                 .type(WaybillType.DISPATCH)
                 .partner(partnerVogue)
                 .orderId(orderFromVogue.getId())
+                .sourceWarehouse(whAtlasMain)
                 .status(WaybillStatus.DISPATCHED)
                 .dispatchDate(OffsetDateTime.now().minusDays(1))
                 .carrierCompany("Aras Kargo Kurumsal Lojistik")
@@ -394,6 +448,37 @@ public class DataInitializer implements ApplicationRunner {
         prodJean.addVariant(varJeaInd32);
         productRepository.save(prodJean);
 
+        // Depolar (Vogue Hazır Giyim Çoklu Depoları)
+        Warehouse whVogGungoren = warehouseRepository.save(Warehouse.builder()
+                .code("WH-VOG-01")
+                .name("Güngören Dikim & Mamul Deposu")
+                .location("İstanbul / Güngören")
+                .address("Tekstilciler Cad. No:44 Güngören/İstanbul")
+                .isActive(true)
+                .build());
+
+        Warehouse whVogBursa = warehouseRepository.save(Warehouse.builder()
+                .code("WH-VOG-02")
+                .name("Bursa Kumaş Tedarik Deposu")
+                .location("Bursa / Nilüfer")
+                .address("Demirtaş OSB 2. Sokak Nilüfer/Bursa")
+                .isActive(true)
+                .build());
+
+        // Stok Dağılımı ve Başlangıç Hareketi
+        createWarehouseStock(whVogGungoren, varGmkBluM, 160, 60, "R-VOG-01");
+        createWarehouseStock(whVogBursa, varGmkBluM, 80, 0, "R-BUR-01");
+        recordInitialMovement(whVogGungoren, varGmkBluM, 160, "SM-2026-VOG-001");
+
+        createWarehouseStock(whVogGungoren, varGmkBluL, 110, 40, "R-VOG-02");
+        createWarehouseStock(whVogBursa, varGmkBluL, 50, 0, "R-BUR-02");
+
+        createWarehouseStock(whVogGungoren, varGmkWhtM, 130, 0, "R-VOG-03");
+        createWarehouseStock(whVogBursa, varGmkWhtM, 60, 0, "R-BUR-03");
+
+        createWarehouseStock(whVogGungoren, varJeaInd32, 120, 50, "R-VOG-04");
+        createWarehouseStock(whVogBursa, varJeaInd32, 60, 0, "R-BUR-04");
+
         // Cari Hesaplar
         BusinessPartner partnerAtlas = businessPartnerRepository.save(BusinessPartner.builder()
                 .name("Atlas Tekstil & Dokuma Sanayi A.Ş.")
@@ -456,6 +541,7 @@ public class DataInitializer implements ApplicationRunner {
                 .type(WaybillType.DISPATCH)
                 .partner(partnerTrendline)
                 .orderId(orderFromTrendline.getId())
+                .sourceWarehouse(whVogGungoren)
                 .status(WaybillStatus.DISPATCHED)
                 .dispatchDate(OffsetDateTime.now().minusHours(12))
                 .carrierCompany("Yurtiçi Kargo Lojistik")
@@ -526,6 +612,34 @@ public class DataInitializer implements ApplicationRunner {
         prodReyonJean.addVariant(varReyonJea32);
         productRepository.save(prodReyonJean);
 
+        // Depolar (Trendline Çoklu Depoları: E-Ticaret Dağıtım & AVM Reyon)
+        Warehouse whTrdIkitelli = warehouseRepository.save(Warehouse.builder()
+                .code("WH-TRD-01")
+                .name("İkitelli Ana E-Ticaret & Lojistik Merkezi")
+                .location("İstanbul / İkitelli OSB")
+                .address("Trikotajcılar Sitesi No:100 İkitelli/Başakşehir")
+                .isActive(true)
+                .build());
+
+        Warehouse whTrdForum = warehouseRepository.save(Warehouse.builder()
+                .code("WH-TRD-02")
+                .name("Marmara Forum AVM Mağaza Deposu")
+                .location("İstanbul / Bakırköy")
+                .address("Marmara Forum AVM -2. Kat Mağaza Deposu")
+                .isActive(true)
+                .build());
+
+        // Stok Dağılımı
+        createWarehouseStock(whTrdIkitelli, varReyonM, 40, 5, "ANA-01");
+        createWarehouseStock(whTrdForum, varReyonM, 20, 0, "AVM-01");
+        recordInitialMovement(whTrdIkitelli, varReyonM, 40, "SM-2026-TRD-001");
+
+        createWarehouseStock(whTrdIkitelli, varReyonL, 25, 0, "ANA-02");
+        createWarehouseStock(whTrdForum, varReyonL, 15, 0, "AVM-02");
+
+        createWarehouseStock(whTrdIkitelli, varReyonJea32, 35, 10, "ANA-03");
+        createWarehouseStock(whTrdForum, varReyonJea32, 15, 0, "AVM-03");
+
         // Cari Hesaplar
         BusinessPartner partnerVogue = businessPartnerRepository.save(BusinessPartner.builder()
                 .name("Vogue Hazır Giyim & Konfeksiyon Ltd.")
@@ -587,6 +701,8 @@ public class DataInitializer implements ApplicationRunner {
                 .type(WaybillType.DISPATCH)
                 .partner(partnerVogue)
                 .orderId(purchaseOrderToVogue.getId())
+                .sourceWarehouse(whTrdIkitelli)
+                .targetWarehouse(whTrdForum)
                 .status(WaybillStatus.DISPATCHED)
                 .dispatchDate(OffsetDateTime.now().minusDays(1))
                 .carrierCompany("Trendline Filo Taşımacılık")

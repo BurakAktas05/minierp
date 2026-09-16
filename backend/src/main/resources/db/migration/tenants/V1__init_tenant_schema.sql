@@ -38,15 +38,60 @@ CREATE TABLE IF NOT EXISTS product_variants (
     variant_name VARCHAR(150) NOT NULL, -- Örn: "Kırmızı - M"
     purchase_price NUMERIC(15, 2) NOT NULL DEFAULT 0.00 CHECK (purchase_price >= 0.00),
     sale_price NUMERIC(15, 2) NOT NULL DEFAULT 0.00 CHECK (sale_price >= 0.00),
-    stock_quantity INTEGER NOT NULL DEFAULT 0 CHECK (stock_quantity >= 0), -- Depodaki fiziksel fiili stok
-    reserved_stock INTEGER NOT NULL DEFAULT 0 CHECK (reserved_stock >= 0), -- Onaylı siparişler için rezerve stok
+    stock_quantity INTEGER NOT NULL DEFAULT 0 CHECK (stock_quantity >= 0), -- Konsolide toplam fiili stok (tüm depolar)
+    reserved_stock INTEGER NOT NULL DEFAULT 0 CHECK (reserved_stock >= 0), -- Konsolide toplam rezerve stok
     attributes JSONB DEFAULT '{}'::jsonb, -- Dinamik varyant özellikleri (örn: {"renk": "Kırmızı", "beden": "M"})
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     version BIGINT DEFAULT 0
 );
 
--- 4. Cari Hesaplar (Business Partners: Müşteri / Tedarikçi)
+-- 4. Depolar (Warehouses - Çoklu Depo Yönetimi)
+CREATE TABLE IF NOT EXISTS warehouses (
+    id BIGSERIAL PRIMARY KEY,
+    code VARCHAR(50) NOT NULL UNIQUE,
+    name VARCHAR(100) NOT NULL,
+    location VARCHAR(150),
+    address TEXT,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    version BIGINT DEFAULT 0
+);
+
+-- 5. Depo Bazlı Varyant Stok Bakiyeleri (Warehouse Stocks)
+CREATE TABLE IF NOT EXISTS warehouse_stocks (
+    id BIGSERIAL PRIMARY KEY,
+    warehouse_id BIGINT NOT NULL REFERENCES warehouses(id) ON DELETE RESTRICT,
+    variant_id BIGINT NOT NULL REFERENCES product_variants(id) ON DELETE CASCADE,
+    quantity INTEGER NOT NULL DEFAULT 0 CHECK (quantity >= 0),
+    reserved_stock INTEGER NOT NULL DEFAULT 0 CHECK (reserved_stock >= 0),
+    shelf_location VARCHAR(50),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    version BIGINT DEFAULT 0,
+    CONSTRAINT uk_warehouse_variant UNIQUE (warehouse_id, variant_id)
+);
+
+-- 6. Stok Hareket Kütüğü (Stock Movements - Kurumsal Denetim & Ledger)
+CREATE TABLE IF NOT EXISTS stock_movements (
+    id BIGSERIAL PRIMARY KEY,
+    movement_number VARCHAR(50) NOT NULL UNIQUE,
+    movement_type VARCHAR(30) NOT NULL CHECK (movement_type IN ('GOODS_RECEIPT', 'GOODS_ISSUE', 'TRANSFER', 'ADJUSTMENT', 'RETURN')),
+    source_warehouse_id BIGINT REFERENCES warehouses(id) ON DELETE SET NULL,
+    target_warehouse_id BIGINT REFERENCES warehouses(id) ON DELETE SET NULL,
+    variant_id BIGINT NOT NULL REFERENCES product_variants(id) ON DELETE RESTRICT,
+    quantity INTEGER NOT NULL CHECK (quantity > 0),
+    reference_type VARCHAR(30), -- WAYBILL, ORDER, INVENTORY_COUNT, MANUAL
+    reference_id BIGINT,
+    notes TEXT,
+    performed_by VARCHAR(50) NOT NULL DEFAULT 'SYSTEM',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    version BIGINT DEFAULT 0
+);
+
+-- 7. Cari Hesaplar (Business Partners: Müşteri / Tedarikçi)
 CREATE TABLE IF NOT EXISTS business_partners (
     id BIGSERIAL PRIMARY KEY,
     partner_type VARCHAR(30) NOT NULL CHECK (partner_type IN ('CUSTOMER', 'SUPPLIER', 'BOTH')),
@@ -63,7 +108,7 @@ CREATE TABLE IF NOT EXISTS business_partners (
     version BIGINT DEFAULT 0
 );
 
--- 5. B2B Teklifler (Quotations)
+-- 8. B2B Teklifler (Quotations)
 CREATE TABLE IF NOT EXISTS quotations (
     id BIGSERIAL PRIMARY KEY,
     quotation_number VARCHAR(50) NOT NULL UNIQUE,
@@ -84,7 +129,7 @@ CREATE TABLE IF NOT EXISTS quotations (
     version BIGINT DEFAULT 0
 );
 
--- 6. Teklif Kalemleri (Quotation Items)
+-- 9. Teklif Kalemleri (Quotation Items)
 CREATE TABLE IF NOT EXISTS quotation_items (
     id BIGSERIAL PRIMARY KEY,
     quotation_id BIGINT NOT NULL REFERENCES quotations(id) ON DELETE CASCADE,
@@ -100,7 +145,7 @@ CREATE TABLE IF NOT EXISTS quotation_items (
     version BIGINT DEFAULT 0
 );
 
--- 7. Resmi Siparişler (Orders)
+-- 10. Resmi Siparişler (Orders)
 CREATE TABLE IF NOT EXISTS orders (
     id BIGSERIAL PRIMARY KEY,
     order_number VARCHAR(50) NOT NULL UNIQUE,
@@ -122,7 +167,7 @@ CREATE TABLE IF NOT EXISTS orders (
     version BIGINT DEFAULT 0
 );
 
--- 8. Sipariş Kalemleri (Order Items)
+-- 11. Sipariş Kalemleri (Order Items)
 CREATE TABLE IF NOT EXISTS order_items (
     id BIGSERIAL PRIMARY KEY,
     order_id BIGINT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
@@ -138,13 +183,15 @@ CREATE TABLE IF NOT EXISTS order_items (
     version BIGINT DEFAULT 0
 );
 
--- 9. İrsaliyeler (Waybills / Shipments)
+-- 12. İrsaliyeler (Waybills / Shipments - Depo Bağlantılı)
 CREATE TABLE IF NOT EXISTS waybills (
     id BIGSERIAL PRIMARY KEY,
     waybill_number VARCHAR(50) NOT NULL UNIQUE,
     type VARCHAR(20) NOT NULL CHECK (type IN ('DISPATCH', 'RECEIPT')),
     partner_id BIGINT NOT NULL REFERENCES business_partners(id) ON DELETE RESTRICT,
     order_id BIGINT REFERENCES orders(id) ON DELETE SET NULL,
+    source_warehouse_id BIGINT REFERENCES warehouses(id) ON DELETE SET NULL,
+    target_warehouse_id BIGINT REFERENCES warehouses(id) ON DELETE SET NULL,
     status VARCHAR(30) NOT NULL DEFAULT 'DRAFT' CHECK (status IN ('DRAFT', 'DISPATCHED', 'DELIVERED', 'CANCELLED')),
     dispatch_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     delivery_date TIMESTAMP WITH TIME ZONE,
@@ -158,7 +205,7 @@ CREATE TABLE IF NOT EXISTS waybills (
     version BIGINT DEFAULT 0
 );
 
--- 10. İrsaliye Kalemleri (Waybill Items)
+-- 13. İrsaliye Kalemleri (Waybill Items)
 CREATE TABLE IF NOT EXISTS waybill_items (
     id BIGSERIAL PRIMARY KEY,
     waybill_id BIGINT NOT NULL REFERENCES waybills(id) ON DELETE CASCADE,
@@ -171,7 +218,7 @@ CREATE TABLE IF NOT EXISTS waybill_items (
     version BIGINT DEFAULT 0
 );
 
--- 11. Kullanıcılar (Users - Kiracı Bazında İzolasyon & Kimlik Doğrulama)
+-- 14. Kullanıcılar (Users - Kiracı Bazında İzolasyon & Kimlik Doğrulama)
 CREATE TABLE IF NOT EXISTS users (
     id BIGSERIAL PRIMARY KEY,
     username VARCHAR(50) NOT NULL UNIQUE,
@@ -185,7 +232,7 @@ CREATE TABLE IF NOT EXISTS users (
     version BIGINT DEFAULT 0
 );
 
--- 12. Denetim Günlükleri (Audit Logs)
+-- 15. Denetim Günlükleri (Audit Logs)
 CREATE TABLE IF NOT EXISTS audit_logs (
     id BIGSERIAL PRIMARY KEY,
     action VARCHAR(30) NOT NULL,          -- CREATE, UPDATE, DELETE, LOGIN, STATUS_CHANGE
@@ -204,6 +251,15 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 CREATE INDEX IF NOT EXISTS idx_products_attributes ON products USING gin (attributes);
 CREATE INDEX IF NOT EXISTS idx_variants_attributes ON product_variants USING gin (attributes);
 
+-- Depo & Stok İndeksleri
+CREATE INDEX IF NOT EXISTS idx_wh_stocks_warehouse ON warehouse_stocks(warehouse_id);
+CREATE INDEX IF NOT EXISTS idx_wh_stocks_variant ON warehouse_stocks(variant_id);
+CREATE INDEX IF NOT EXISTS idx_stock_movements_variant ON stock_movements(variant_id);
+CREATE INDEX IF NOT EXISTS idx_stock_movements_source_wh ON stock_movements(source_warehouse_id);
+CREATE INDEX IF NOT EXISTS idx_stock_movements_target_wh ON stock_movements(target_warehouse_id);
+CREATE INDEX IF NOT EXISTS idx_stock_movements_ref ON stock_movements(reference_type, reference_id);
+CREATE INDEX IF NOT EXISTS idx_stock_movements_date ON stock_movements(created_at);
+
 -- Foreign Key B-Tree İndeksleri (JOIN ve filtreleme hızlandırma)
 CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id);
 CREATE INDEX IF NOT EXISTS idx_variants_product ON product_variants(product_id);
@@ -216,6 +272,8 @@ CREATE INDEX IF NOT EXISTS idx_order_items_order ON order_items(order_id);
 CREATE INDEX IF NOT EXISTS idx_order_items_variant ON order_items(variant_id);
 CREATE INDEX IF NOT EXISTS idx_waybills_partner ON waybills(partner_id);
 CREATE INDEX IF NOT EXISTS idx_waybills_order ON waybills(order_id);
+CREATE INDEX IF NOT EXISTS idx_waybills_source_wh ON waybills(source_warehouse_id);
+CREATE INDEX IF NOT EXISTS idx_waybills_target_wh ON waybills(target_warehouse_id);
 CREATE INDEX IF NOT EXISTS idx_waybill_items_waybill ON waybill_items(waybill_id);
 CREATE INDEX IF NOT EXISTS idx_waybill_items_variant ON waybill_items(variant_id);
 

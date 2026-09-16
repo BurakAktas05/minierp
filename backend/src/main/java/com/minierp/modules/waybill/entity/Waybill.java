@@ -1,6 +1,7 @@
 package com.minierp.modules.waybill.entity;
 
 import com.minierp.core.common.entity.BaseEntity;
+import com.minierp.modules.inventory.entity.Warehouse;
 import com.minierp.modules.partner.entity.BusinessPartner;
 import jakarta.persistence.*;
 import lombok.*;
@@ -38,6 +39,14 @@ public class Waybill extends BaseEntity {
 
     @Column(name = "order_id")
     private Long orderId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "source_warehouse_id")
+    private Warehouse sourceWarehouse;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "target_warehouse_id")
+    private Warehouse targetWarehouse;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
