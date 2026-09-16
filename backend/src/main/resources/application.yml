@@ -1,14 +1,14 @@
 server:
-  port: 8080
+  port: ${PORT:8080}
 
 spring:
   application:
     name: minierp-backend
 
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:minierp_db}
-    username: ${DB_USER:postgres}
-    password: ${DB_PASSWORD:postgres}
+    url: ${SPRING_DATASOURCE_URL:${JDBC_DATABASE_URL:jdbc:postgresql://${DB_HOST:${PGHOST:localhost}}:${DB_PORT:${PGPORT:5432}}/${DB_NAME:${PGDATABASE:minierp_db}}}}
+    username: ${DB_USER:${PGUSER:postgres}}
+    password: ${DB_PASSWORD:${PGPASSWORD:postgres}}
     driver-class-name: org.postgresql.Driver
     hikari:
       pool-name: MiniErpHikariPool
@@ -35,13 +35,14 @@ spring:
     locations: classpath:db/migration/default
 
   rabbitmq:
-    host: ${RABBITMQ_HOST:localhost}
-    port: ${RABBITMQ_PORT:5672}
-    username: ${RABBITMQ_USERNAME:guest}
-    password: ${RABBITMQ_PASSWORD:guest}
+    host: ${RABBITMQ_HOST:${RABBITMQHOST:localhost}}
+    port: ${RABBITMQ_PORT:${RABBITMQPORT:5672}}
+    username: ${RABBITMQ_USERNAME:${RABBITMQUSER:${RABBITMQ_DEFAULT_USER:guest}}}
+    password: ${RABBITMQ_PASSWORD:${RABBITMQPASSWORD:${RABBITMQ_DEFAULT_PASS:guest}}}
     listener:
       simple:
-        auto-startup: true
+        auto-startup: ${RABBITMQ_ENABLED:true}
+        missing-queues-fatal: false
         default-requeue-rejected: false
 
 minierp:

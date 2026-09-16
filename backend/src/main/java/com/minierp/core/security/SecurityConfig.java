@@ -44,7 +44,14 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Public endpoint'ler (Kimlik doğrulama gerektirmeyen)
+                        // Public statik dosyalar ve SPA rotaları (Frontend)
+                        .requestMatchers("/", "/index.html", "/assets/**", "/favicon.ico", "/*.svg", "/*.png", "/*.ico", "/*.js", "/*.css").permitAll()
+                        .requestMatchers("/login", "/inventory", "/categories", "/partners", "/quotations", "/orders", "/waybills", "/audit-logs", "/info").permitAll()
+
+                        // Health check uç noktaları
+                        .requestMatchers("/health", "/api/v1/health").permitAll()
+
+                        // Public API endpoint'ler (Kimlik doğrulama gerektirmeyen)
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/api/v1/tenants/**").permitAll()
                         .requestMatchers("/bilgilendirme", "/api/v1/bilgilendirme", "/api/v1/bilgilendirme/**").permitAll()
@@ -55,8 +62,11 @@ public class SecurityConfig {
                         // Audit Logları: Sadece ADMIN
                         .requestMatchers("/api/v1/audit-logs/**").hasRole("ADMIN")
 
-                        // Diğer tüm endpoint'ler: Authenticated (giriş yapmış kullanıcı)
-                        .anyRequest().authenticated()
+                        // Diğer tüm API endpoint'ler: Authenticated (giriş yapmış kullanıcı)
+                        .requestMatchers("/api/**").authenticated()
+
+                        // Kalan tüm web istekleri (SPA fallback): permitAll
+                        .anyRequest().permitAll()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 

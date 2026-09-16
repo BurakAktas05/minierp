@@ -26,6 +26,10 @@ public class WaybillEventPublisher {
     public void publishWaybillDispatched(WaybillDispatchedEvent event) {
         log.info("RabbitMQ'ya İrsaliye Sevk Olayı gönderiliyor: İrsaliyeNo={}, Kiracı={}, KalemAdedi={}",
                 event.getWaybillNumber(), event.getTenantId(), event.getItems().size());
-        rabbitTemplate.convertAndSend(exchangeName, waybillDispatchedKey, event);
+        try {
+            rabbitTemplate.convertAndSend(exchangeName, waybillDispatchedKey, event);
+        } catch (Exception e) {
+            log.warn("RabbitMQ bağlantısı kurulamadı, irsaliye sevk olayı kuyruğa iletilemedi (RabbitMQ çevrimdışı olabilir): {}", e.getMessage());
+        }
     }
 }

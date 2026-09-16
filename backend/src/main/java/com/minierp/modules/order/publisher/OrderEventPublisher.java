@@ -30,12 +30,20 @@ public class OrderEventPublisher {
     public void publishOrderConfirmed(OrderConfirmedEvent event) {
         log.info("RabbitMQ'ya Sipariş Onay Olayı gönderiliyor: SiparişNo={}, Kiracı={}, KalemAdedi={}",
                 event.getOrderNumber(), event.getTenantId(), event.getItems().size());
-        rabbitTemplate.convertAndSend(exchangeName, orderConfirmedKey, event);
+        try {
+            rabbitTemplate.convertAndSend(exchangeName, orderConfirmedKey, event);
+        } catch (Exception e) {
+            log.warn("RabbitMQ bağlantısı kurulamadı, sipariş onay olayı kuyruğa iletilemedi (RabbitMQ çevrimdışı olabilir): {}", e.getMessage());
+        }
     }
 
     public void publishOrderCancelled(OrderCancelledEvent event) {
         log.info("RabbitMQ'ya Sipariş İptal Olayı gönderiliyor: SiparişNo={}, Kiracı={}, KalemAdedi={}",
                 event.getOrderNumber(), event.getTenantId(), event.getItems().size());
-        rabbitTemplate.convertAndSend(exchangeName, orderCancelledKey, event);
+        try {
+            rabbitTemplate.convertAndSend(exchangeName, orderCancelledKey, event);
+        } catch (Exception e) {
+            log.warn("RabbitMQ bağlantısı kurulamadı, sipariş iptal olayı kuyruğa iletilemedi (RabbitMQ çevrimdışı olabilir): {}", e.getMessage());
+        }
     }
 }
