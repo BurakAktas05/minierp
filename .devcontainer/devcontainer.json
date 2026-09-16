@@ -1,0 +1,21 @@
+{
+  "name": "MiniERP Cloud Environment",
+  "image": "mcr.microsoft.com/devcontainers/universal:2",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "forwardPorts": [3000, 8080, 15672],
+  "portsAttributes": {
+    "3000": {
+      "label": "MiniERP Frontend Portal",
+      "onAutoForward": "openBrowser"
+    },
+    "8080": {
+      "label": "Spring Boot Backend API"
+    },
+    "15672": {
+      "label": "RabbitMQ Management"
+    }
+  },
+  "postCreateCommand": "echo 'MiniERP GitHub Codespaces ortamı hazır! Terminalden docker compose up -d ile tüm sistemi başlatabilirsiniz.'"
+}
