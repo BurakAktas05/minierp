@@ -476,6 +476,48 @@ erDiagram
       padding: 2px 6px;
       border-radius: 4px;
     }
+    .faq-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+      gap: 20px;
+    }
+    .faq-card {
+      background: rgba(15, 23, 42, 0.75);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      transition: all 0.25s ease;
+    }
+    .faq-card:hover {
+      border-color: var(--primary);
+      box-shadow: 0 10px 25px var(--primary-glow);
+      transform: translateY(-2px);
+    }
+    .faq-q {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .faq-a {
+      font-size: 0.9rem;
+      color: #cbd5e1;
+      line-height: 1.65;
+    }
+    .faq-highlight {
+      background: rgba(56, 189, 248, 0.08);
+      border-left: 3px solid var(--primary);
+      padding: 10px 14px;
+      border-radius: 0 8px 8px 0;
+      margin-top: 6px;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
   </style>
 </head>
 <body>
@@ -588,9 +630,88 @@ erDiagram
       </div>
     </div>
 
+    <!-- Mimari & Veritabanı Tasarım Analizi (FAQ) -->
+    <div>
+      <div class="section-header" style="margin-bottom: 16px;">
+        <h2 class="section-title">💡 4. Veritabanı Mimarisi & Tasarım Kararları Derin Analizi</h2>
+        <p style="color: var(--text-muted); font-size: 0.9rem;">ERP Dünyasında Header-Item, Multi-Tenancy ve Cari Hesap Mantığı</p>
+      </div>
+
+      <div class="faq-grid">
+        <!-- Soru 1 -->
+        <div class="faq-card">
+          <div class="faq-q">
+            <span>📑</span>
+            <h4>Neden Orders/OrderItems veya Waybills/WaybillItems Ayrı Tablolardır?</h4>
+          </div>
+          <div class="faq-a">
+            Bu yapı kurumsal ERP sistemlerinin (SAP, Oracle EBS, Microsoft Dynamics) temel taşı olan <strong>Başlık-Kalem (Header-Line / Master-Detail)</strong> desenidir.
+            <br><br>
+            Bir sipariş veya irsaliyede <strong>Başlık Bilgileri</strong> (tarih, cari hesap, sevk adresi, genel toplam, kargo takip no) yalnızca <strong>1 KEZ</strong> gerçekleşir. Ancak o siparişin içinde 10 veya 100 farklı ürün/kalem bulunabilir (<strong>1:N İlişki</strong>).
+          </div>
+          <div class="faq-highlight">
+            ⚠️ <strong>Anti-Pattern Engelleme:</strong> Kalemler ayrı tabloda olmasaydı; ya <code>urun_1, urun_2...</code> gibi statik sütunlar açılacak, ya her ürün için sipariş başlığı 10 kez tekrarlanacak (veri tekrarı/anomali), ya da JSON içine gömülerek Foreign Key ve DB seviyesi stok kilitleri kaybedilecekti.
+          </div>
+        </div>
+
+        <!-- Soru 2 -->
+        <div class="faq-card">
+          <div class="faq-q">
+            <span>🏬</span>
+            <h4>Tenant (Kiracı) Varken Neden Business Partner (Cari) Tablosu Var?</h4>
+          </div>
+          <div class="faq-a">
+            <strong>Tenant (Kiracı)</strong> ile <strong>Business Partner (Cari Hesap)</strong> tamamen farklı iki soyutlama katmanıdır:
+            <br><br>
+            • <strong>Tenant (Kiracı)</strong>: Bulut yazılımının (SaaS) abonesidir ve kendi bağımsız PostgreSQL şemasına sahiptir (örn: Atlas Tekstil).
+            <br>
+            • <strong>Business Partner (Cari)</strong>: O işletmenin günlük hayatta ticaret yaptığı dış dünyadır (müşterileri, tedarikçileri, fason boyahaneleri).
+          </div>
+          <div class="faq-highlight">
+            🎯 <strong>Kritik Gerçek:</strong> Atlas Tekstil'in kumaş sattığı 300 müşterinin veya pamuk aldığı çiftçilerin MiniERP abonesi olması <u>gerekmez</u>. Cari tablosu olmazsa, işletme dış dünyaya fatura kesemez ve borç-alacak takip edemez.
+          </div>
+        </div>
+
+        <!-- Soru 3 -->
+        <div class="faq-card">
+          <div class="faq-q">
+            <span>👤</span>
+            <h4>User Tablosunda Neden İşletme Kolonu Yerine Rol (Role) Var?</h4>
+          </div>
+          <div class="faq-a">
+            Sistemimiz <strong>Schema-per-Tenant</strong> mimarisindedir. Yani <code>users</code> tablosu master şemada değil, <strong>her işletmenin kendi izole PostgreSQL şemasında</strong> (<code>tenant_tekstil.users</code>) yer alır.
+            <br><br>
+            Bir kullanıcının başka bir firmanın çalışanı olma ihtimali veritabanı seviyesinde fiziksel olarak engellenmiştir.
+          </div>
+          <div class="faq-highlight">
+            🔑 <strong>Rolün Önemi:</strong> İşletme içi yetki dağılımı (RBAC) zorunludur: Şirket Genel Müdürü (<code>ROLE_ADMIN</code>), yüksek tutarlı sipariş onaylayan Satış Müdürü (<code>ROLE_MANAGER</code>) ve depoda sevkiyat okutan Depo Personeli (<code>ROLE_USER</code>).
+          </div>
+        </div>
+
+        <!-- Soru 4 -->
+        <div class="faq-card">
+          <div class="faq-q">
+            <span>🛡️</span>
+            <h4>Veritabanında Hangi Anti-Pattern'ler Tespit Edilip Düzeltildi?</h4>
+          </div>
+          <div class="faq-a">
+            Yapılan kapsamlı mimari incelemede şu kurumsal kısıtlar ve indeksler eklendi:
+            <br><br>
+            • <strong>Negatif Stok ve Fiyat Engelleme:</strong> <code>stock_quantity >= 0</code>, <code>reserved_stock >= 0</code>, <code>unit_price >= 0</code> CHECK kısıtları eklendi.
+            • <strong>Sipariş & İrsaliye Adet Kontrolü:</strong> <code>quantity > 0</code> (eksi adet girilemez).
+            • <strong>State Machine Kısıtları:</strong> Durumlar (<code>DRAFT</code>, <code>CONFIRMED</code> vb.) DB seviyesinde CHECK kuralına bağlandı.
+            • <strong>FK B-Tree İndeksleri:</strong> Kalem ve cari sorgularını anlık hale getirmek için tüm Foreign Key sütunlarına indeks eklendi.
+          </div>
+          <div class="faq-highlight">
+            ⚡ <strong>Sonuç:</strong> Veritabanı seviyesinde %100 ACID veri bütünlüğü ve sıfır tutarsızlık garantilendi.
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- API Bilgisi -->
     <div>
-      <h2 class="section-title">🔌 4. JSON API Uç Noktası</h2>
+      <h2 class="section-title">🔌 5. JSON API Uç Noktası</h2>
       <div class="glass-box">
         <p style="margin-bottom: 12px; color: var(--text-muted);">Bu sistem bilgilerini, tablo şemalarını ve Mermaid diyagram kodunu programmatic olarak JSON formatında tüketebilirsiniz:</p>
         <div class="api-pill">
