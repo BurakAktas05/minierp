@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Pure corporate palette - Slate / Zinc inspired, high-contrast, clean */
+    --background: 210 20% 98%;           /* #f8fafc - very subtle light slate */
+    --foreground: 222.2 84% 4.9%;        /* #020817 - deep dark charcoal */
+
+    --card: 0 0% 100%;                   /* Pure white card backgrounds */
+    --card-foreground: 222.2 84% 4.9%;
+
+    --primary: 222.2 47.4% 11.2%;        /* #0f172a - rich corporate navy/slate */
+    --primary-foreground: 210 40% 98%;
+    --primary-hover: 217 33% 17%;
+
+    --secondary: 210 40% 96.1%;          /* Subtle light gray button/action bg */
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%; /* #64748b - readable corporate gray */
+
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+
+    --destructive: 0 72% 51%;            /* Clean ruby red for alerts/deletes */
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;         /* #e2e8f0 - sharp 1px border */
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+
+    --sidebar-background: 222.2 47.4% 11.2%; /* #0f172a - deep corporate slate sidebar */
+    --sidebar-foreground: 210 40% 96.1%;
+    --sidebar-border: 217.2 32.6% 17.5%;
+    --sidebar-hover: 217.2 32.6% 17.5%;
+    --sidebar-active: 215 27.9% 16.9%;
+
+    --radius: 0.375rem; /* 6px crisp radius - no oversized pills */
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+/* Crisp corporate scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}

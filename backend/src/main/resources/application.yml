@@ -1,0 +1,61 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: minierp-backend
+
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:minierp_db}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      pool-name: MiniErpHikariPool
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 300000
+      connection-timeout: 20000
+      max-lifetime: 1200000
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: none
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        default_schema: public
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    schemas: public
+    locations: classpath:db/migration/default
+
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+    listener:
+      simple:
+        auto-startup: true
+        default-requeue-rejected: false
+
+minierp:
+  multitenancy:
+    header-name: X-Tenant-ID
+    default-tenant: public
+  security:
+    jwt:
+      secret: ${JWT_SECRET:bWluaWVycC1zdXBlci1zZWNyZXQta2V5LWZvci1qd3QtdG9rZW4tZ2VuZXJhdGlvbi0yMDI2LXByb2R1Y3Rpb24tZ3JhZGU=}
+      expiration-ms: ${JWT_EXPIRATION:86400000}
+  events:
+    exchange: minierp.events.exchange
+    order-reservation-queue: minierp.inventory.order-reservation.queue
+    waybill-fulfillment-queue: minierp.inventory.waybill-fulfillment.queue
+    order-confirmed-key: order.confirmed
+    order-cancelled-key: order.cancelled
+    waybill-dispatched-key: waybill.dispatched
