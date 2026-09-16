@@ -10,8 +10,7 @@ MiniERP; modern işletmeler için geliştirilmiş, **PostgreSQL Schema-per-Tenan
 3. [Adım Adım B2B Tedarik Zinciri Kullanım Kılavuzu](#-adım-adım-b2b-tedarik-zinciri-kullanım-kılavuzu)
 4. [İşletme Modülleri Kılavuzu](#-işletme-modülleri-kılavuzu)
 5. [Docker ile Kurulum ve Çalıştırma](#-docker-ile-kurulum-ve-çalıştırma)
-6. [GitHub'a Yükleme (Push) Kılavuzu](#-githuba-yükleme-push-kılavuzu)
-7. [Dizin Yapısı ve Mimarisi](#-dizin-yapısı)
+6. [Dizin Yapısı ve Mimarisi](#-dizin-yapısı)
 
 ---
 
@@ -184,43 +183,6 @@ Bu komut sırasıyla:
 docker compose down
 ```
 *(Verileri de sıfırlamak isterseniz: `docker compose down -v`)*
-
----
-
-## 🚀 GitHub'a Yükleme (Push) Kılavuzu
-
-Projeyi GitHub hesabınıza yüklemek için şu adımları izleyin:
-
-### 1. GitHub'da Yeni Bir Repository Oluşturun
-1. [GitHub](https://github.com)'a giriş yapın.
-2. Sağ üstteki **+** ikonuna tıklayıp **"New repository"** seçin.
-3. Repository adını girin (Örn: `minierp`).
-4. **Public** veya **Private** seçin (*README, .gitignore eklemeyin, projemizde zaten hazır*).
-5. **"Create repository"** butonuna tıklayın.
-
-### 2. Terminalden Sırasıyla Şu Komutları Çalıştırın
-
-Projenin bulunduğu ana dizinde (`minierp` klasöründe):
-
-```bash
-# 1. Git deposunu başlatın
-git init
-
-# 2. Tüm dosyaları sahneye ekleyin (.gitignore gereksiz dosyaları otomatik dışlar)
-git add .
-
-# 3. İlk commit'i oluşturun
-git commit -m "feat: MiniERP multi-tenant enterprise system with B2B supply chain"
-
-# 4. Ana dal adını main olarak belirleyin
-git branch -M main
-
-# 5. GitHub repository adresinizi bağlayın (kendi linkinizi yazın)
-git remote add origin https://github.com/<KULLANICI_ADINIZ>/<REPO_ADINIZ>.git
-
-# 6. Kodu GitHub'a gönderin
-git push -u origin main
-```
 
 ---
 

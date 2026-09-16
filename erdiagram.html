@@ -37,6 +37,7 @@
       overflow-x: hidden;
     }
 
+    /* Header */
     header {
       padding: 16px 40px;
       border-bottom: 1px solid var(--border);
@@ -101,6 +102,7 @@
       50% { opacity: 0.4; transform: scale(0.85); }
     }
 
+    /* Main Container */
     main {
       max-width: 1560px;
       margin: 0 auto;
@@ -131,6 +133,7 @@
       color: var(--text-muted);
     }
 
+    /* Glass Box Container */
     .glass-box {
       background: var(--bg-card);
       border: 1px solid var(--border);
@@ -141,6 +144,7 @@
       position: relative;
     }
 
+    /* Diagram Toolbar & Canvas */
     .toolbar {
       display: flex;
       align-items: center;
@@ -232,6 +236,7 @@
       pointer-events: none;
     }
 
+    /* Badges & Pills */
     .pill {
       font-family: 'JetBrains Mono', monospace;
       font-size: 0.72rem;
@@ -244,12 +249,53 @@
     .pill-uk { background: rgba(251, 191, 36, 0.2); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.4); }
     .pill-fixed { background: rgba(52, 211, 153, 0.2); color: #34d399; border: 1px solid rgba(52, 211, 153, 0.4); }
 
+    /* Summary Grid Cards */
     .grid-3 {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
       gap: 20px;
     }
 
+    .card {
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 22px;
+      transition: all 0.25s ease;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .card:hover {
+      border-color: var(--primary);
+      box-shadow: 0 10px 30px var(--primary-glow);
+      transform: translateY(-3px);
+    }
+
+    .card h3 {
+      color: var(--primary);
+      font-size: 1.08rem;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .card p {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      line-height: 1.55;
+    }
+
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    /* Comparison / Fix Notes Grid */
     .fix-card {
       background: rgba(15, 23, 42, 0.75);
       border: 1px solid var(--border);
@@ -303,6 +349,7 @@
       overflow-x: auto;
     }
 
+    /* Tables Dictionary & Schema Explorer */
     .schema-table {
       width: 100%;
       border-collapse: collapse;
@@ -341,6 +388,7 @@
       font-size: 0.8rem;
     }
 
+    /* Footer */
     footer {
       border-top: 1px solid var(--border);
       padding: 24px;
@@ -354,6 +402,7 @@
 </head>
 <body>
 
+  <!-- Top Sticky Header -->
   <header>
     <div class="header-brand">
       <span class="logo-badge">MiniERP</span>
@@ -366,6 +415,7 @@
   </header>
 
   <main>
+    <!-- ER Diagram Section -->
     <section>
       <div class="section-header">
         <div>
@@ -387,7 +437,9 @@
           <div id="panZoomCanvas" class="pan-zoom-canvas">
             <pre class="mermaid" id="mermaidGraph">
 erDiagram
+    %% ==========================================
     %% Master Schema (public)
+    %% ==========================================
     TENANTS {
         bigint id PK
         varchar tenant_id UK "Kiraci Kodu (tenant_tekstil)"
@@ -399,7 +451,9 @@ erDiagram
         bigint version
     }
 
+    %% ==========================================
     %% Tenant Schema - Urun & Stok Mimarisi
+    %% ==========================================
     CATEGORIES {
         bigint id PK
         varchar code UK "Kategori Kodu"
@@ -480,7 +534,9 @@ erDiagram
         bigint version
     }
 
+    %% ==========================================
     %% Cari & Ticari Islemler
+    %% ==========================================
     BUSINESS_PARTNERS {
         bigint id PK
         varchar partner_type "CUSTOMER, SUPPLIER, BOTH"
@@ -596,7 +652,9 @@ erDiagram
         bigint version
     }
 
+    %% ==========================================
     %% Kullanici & Merkezi Denetim Logu
+    %% ==========================================
     USERS {
         bigint id PK
         varchar username UK "Kullanici Adi"
@@ -622,7 +680,9 @@ erDiagram
         timestamp performed_at
     }
 
-    %% Iliskiler
+    %% ==========================================
+    %% Iliskiler (Crow's Foot Notation)
+    %% ==========================================
     CATEGORIES ||--o{ PRODUCTS : "kapsar"
     PRODUCTS ||--|{ PRODUCT_VARIANTS : "sahiptir"
     
@@ -653,6 +713,7 @@ erDiagram
       </div>
     </section>
 
+    <!-- Architecture & Fix Breakdown -->
     <section>
       <div class="section-header">
         <div>
@@ -662,33 +723,37 @@ erDiagram
       </div>
 
       <div class="grid-3">
+        <!-- Fix 1 -->
         <div class="fix-card">
           <span class="fix-badge">✓ Giderilen Anti-Pattern</span>
           <h3 class="fix-title">1. Product Variants Tablosundan Stok Kolonları Kaldırıldı</h3>
           <p class="fix-desc">
-            Varyant tablosunda <span class="pill pill-uk">stock_quantity</span> ve <span class="pill pill-uk">reserved_stock</span> tutulması kaldırıldı. Gerçek stok sadece <strong>warehouse_stocks</strong> tablosunda ve hareketler <strong>stock_movements</strong> kütüğünde tutulur.
+            Varyant tablosunda <span class="pill pill-uk">stock_quantity</span> ve <span class="pill pill-uk">reserved_stock</span> kolonları tutmak, çoklu depo yapısında çift kayıt (redundancy) ve eşzamanlı kilitlenme (deadlock) yaratıyordu.
           </p>
           <div class="code-box">
-            v_variant_stock_summary View ile anlık toplam bakiye sorgulanabilir.
+            -- Gerçek Stok Kaynağı: warehouse_stocks tablosu<br>
+            -- Toplam Görünüm: v_variant_stock_summary View
           </div>
         </div>
 
+        <!-- Fix 2 -->
         <div class="fix-card">
           <span class="fix-badge">✓ Doğru Mimari Karar</span>
           <h3 class="fix-title">2. Merkezi Denetim Günlüğü (Tek Tablo `audit_logs`)</h3>
           <p class="fix-desc">
-            Her tablo için ayrı audit tablosu açmak yerine tek bir merkezi <span class="pill pill-fixed">audit_logs</span> tablosu ile entity_type, entity_id, action, performed_by, ip_address ve details JSONB farkı saklanır.
+            Her 2 tabloda bir audit tablosu açmak <strong>yanlış bir yaklaşımdır</strong>. Tek bir merkezi <span class="pill pill-fixed">audit_logs</span> tablosunda <span class="pill pill-pk">entity_type</span>, <span class="pill pill-pk">entity_id</span> ve <span class="pill pill-pk">details JSONB</span> ile tüm sistemin denetim kütüğü saklanır.
           </p>
           <div class="code-box">
             audit_logs (entity_type, entity_id, action, details JSONB, performed_by, ip_address)
           </div>
         </div>
 
+        <!-- Fix 3 -->
         <div class="fix-card">
           <span class="fix-badge">✓ Kurumsal ERP Eklentisi</span>
           <h3 class="fix-title">3. Döviz Kuru (`exchange_rate`) & Kısmi Sevk (`order_item_id`)</h3>
           <p class="fix-desc">
-            Teklif, sipariş ve irsaliyelere <span class="pill pill-fixed">exchange_rate</span>; irsaliye kalemlerine ise sipariş kalemi referansı (<span class="pill pill-fk">order_item_id</span>) bağlanarak kısmi teslimat yönetimi sağlandı.
+            Teklif, sipariş ve irsaliyelerde işlem anındaki kur (<span class="pill pill-fixed">exchange_rate</span>) eklendi. İrsaliye kalemlerine sipariş kalemi referansı (<span class="pill pill-fk">order_item_id</span>) bağlanarak parça parça sevkiyat (backorder) imkanı sağlandı.
           </p>
           <div class="code-box">
             waybill_items.order_item_id -> order_items.id
@@ -697,6 +762,7 @@ erDiagram
       </div>
     </section>
 
+    <!-- Schema Summary Tables -->
     <section>
       <div class="section-header">
         <div>
@@ -804,6 +870,7 @@ erDiagram
     <p>MiniERP Veritabanı Mimarisi • Schema-per-Tenant Çok Kiracılı Mimari • PostgreSQL 16+</p>
   </footer>
 
+  <!-- Pan, Zoom & Mermaid JS Logic -->
   <script>
     mermaid.initialize({
       startOnLoad: true,
@@ -831,6 +898,7 @@ erDiagram
       }
     });
 
+    // Pan & Zoom Implementation
     let scale = 0.9;
     let pointX = 0;
     let pointY = 0;
@@ -911,6 +979,7 @@ erDiagram
       updateTransform(false);
     }, { passive: false });
 
+    // Initial positioning after render
     setTimeout(() => {
       resetZoom();
     }, 600);
