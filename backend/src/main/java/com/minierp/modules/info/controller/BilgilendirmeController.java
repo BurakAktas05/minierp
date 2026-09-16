@@ -377,10 +377,85 @@ erDiagram
     }
     .step-body h4 { font-size: 0.95rem; margin-bottom: 4px; color: #fff; }
     .step-body p { font-size: 0.85rem; color: var(--text-muted); }
-    pre.mermaid {
+    .diagram-container {
+      background: #090e1a;
+      border: 1px solid rgba(56, 189, 248, 0.2);
+      border-radius: 12px;
+      padding: 0;
+      overflow: hidden;
+      height: 720px;
+      position: relative;
+      cursor: grab;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .diagram-container.grabbing {
+      cursor: grabbing;
+    }
+    .pan-zoom-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      transform-origin: 0 0;
+      will-change: transform;
       display: flex;
       justify-content: center;
-      overflow-x: auto;
+      align-items: center;
+    }
+    .pan-zoom-canvas.animate {
+      transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+    pre.mermaid {
+      margin: auto;
+      pointer-events: none;
+    }
+    pre.mermaid svg {
+      max-width: none !important;
+      pointer-events: none;
+    }
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+    .tool-btn {
+      background: rgba(30, 41, 59, 0.8);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    .tool-btn:hover {
+      border-color: var(--primary);
+      background: rgba(56, 189, 248, 0.15);
+      color: var(--primary);
+    }
+    .zoom-level {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82rem;
+      color: var(--accent);
+      background: rgba(52, 211, 153, 0.1);
+      border: 1px solid rgba(52, 211, 153, 0.25);
+      padding: 4px 10px;
+      border-radius: 6px;
+    }
+    .pan-hint {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
     .api-pill {
       font-family: 'JetBrains Mono', monospace;
@@ -418,9 +493,20 @@ erDiagram
     <div>
       <h2 class="section-title">📊 1. Veritabanı Varlık-İlişki (ER) Diyagramı</h2>
       <div class="glass-box">
-        <pre class="mermaid">
+        <div class="toolbar">
+          <button class="tool-btn" onclick="zoomIn()">🔍 Yakınlaştır (+)</button>
+          <button class="tool-btn" onclick="zoomOut()">🔍 Uzaklaştır (-)</button>
+          <button class="tool-btn" onclick="resetZoom()">↺ Sıfırla (100%)</button>
+          <span class="zoom-level" id="zoomLevelIndicator">100%</span>
+          <span class="pan-hint">🖱️ Tıkla & Sürükle | ⚙️ Fare Tekerleğiyle Yakınlaştır</span>
+        </div>
+        <div class="diagram-container" id="diagramWrapper">
+          <div id="panZoomCanvas" class="pan-zoom-canvas">
+            <pre class="mermaid" id="mermaidGraph">
 """ + MERMAID_ER_DIAGRAM + """
-        </pre>
+            </pre>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -516,6 +602,128 @@ erDiagram
   </main>
 
   <script>
+    let scale = 1;
+    let translateX = 0;
+    let translateY = 0;
+    let isDragging = false;
+    let startX = 0;
+    let startY = 0;
+
+    const container = document.getElementById('diagramWrapper');
+    const canvas = document.getElementById('panZoomCanvas');
+    const zoomIndicator = document.getElementById('zoomLevelIndicator');
+
+    function updateTransform(animate = false) {
+      if (animate) {
+        canvas.classList.add('animate');
+      } else {
+        canvas.classList.remove('animate');
+      }
+      canvas.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+      if (zoomIndicator) {
+        zoomIndicator.textContent = Math.round(scale * 100) + '%';
+      }
+    }
+
+    function zoomIn() {
+      scale = Math.min(scale * 1.25, 4);
+      updateTransform(true);
+    }
+
+    function zoomOut() {
+      scale = Math.max(scale / 1.25, 0.25);
+      updateTransform(true);
+    }
+
+    function resetZoom() {
+      scale = 1;
+      translateX = 0;
+      translateY = 0;
+      updateTransform(true);
+    }
+
+    // 1. Mouse ile Sürükleme (Drag & Pan)
+    container.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return; // Sol tık
+      isDragging = true;
+      startX = e.clientX - translateX;
+      startY = e.clientY - translateY;
+      container.classList.add('grabbing');
+      canvas.classList.remove('animate');
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      translateX = e.clientX - startX;
+      translateY = e.clientY - startY;
+      updateTransform(false);
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (isDragging) {
+        isDragging = false;
+        container.classList.remove('grabbing');
+      }
+    });
+
+    // 2. Fare Tekerleği ile İmlece Doğru Yakınlaştırma
+    container.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const rect = container.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      const zoomFactor = e.deltaY < 0 ? 1.15 : 0.87;
+      const newScale = Math.min(Math.max(scale * zoomFactor, 0.25), 4);
+
+      translateX = mouseX - (mouseX - translateX) * (newScale / scale);
+      translateY = mouseY - (mouseY - translateY) * (newScale / scale);
+      scale = newScale;
+      updateTransform(false);
+    }, { passive: false });
+
+    // 3. Dokunmatik Ekran Desteği
+    let initialPinchDist = null;
+    let initialTouchScale = 1;
+    let touchStartX = 0;
+    let touchStartY = 0;
+
+    container.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 1) {
+        isDragging = true;
+        touchStartX = e.touches[0].clientX - translateX;
+        touchStartY = e.touches[0].clientY - translateY;
+      } else if (e.touches.length === 2) {
+        isDragging = false;
+        initialPinchDist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        initialTouchScale = scale;
+      }
+    }, { passive: true });
+
+    container.addEventListener('touchmove', (e) => {
+      if (e.touches.length === 1 && isDragging) {
+        translateX = e.touches[0].clientX - touchStartX;
+        translateY = e.touches[0].clientY - touchStartY;
+        updateTransform(false);
+      } else if (e.touches.length === 2 && initialPinchDist) {
+        const currentDist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        const factor = currentDist / initialPinchDist;
+        scale = Math.min(Math.max(initialTouchScale * factor, 0.25), 4);
+        updateTransform(false);
+      }
+    }, { passive: true });
+
+    container.addEventListener('touchend', () => {
+      isDragging = false;
+      initialPinchDist = null;
+    }, { passive: true });
+
     mermaid.initialize({
       startOnLoad: true,
       theme: 'dark',
@@ -529,7 +737,7 @@ erDiagram
         secondaryColor: '#0f172a',
         tertiaryColor: '#1e1b4b'
       },
-      er: { useMaxWidth: true }
+      er: { useMaxWidth: false }
     });
   </script>
 </body>

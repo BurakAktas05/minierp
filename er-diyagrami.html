@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MiniERP - İnteraktif Veritabanı ER Modeli & Sistem Mimarisi</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    :root {
+      --bg-main: #070b14;
+      --bg-surface: #0e1526;
+      --bg-card: rgba(15, 23, 42, 0.8);
+      --border: rgba(51, 65, 85, 0.5);
+      --border-highlight: #38bdf8;
+      --primary: #38bdf8;
+      --primary-glow: rgba(56, 189, 248, 0.2);
+      --secondary: #818cf8;
+      --accent: #34d399;
+      --warning: #fbbf24;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: radial-gradient(circle at 50% 0%, #172554 0%, #070b14 65%);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+    header {
+      padding: 18px 40px;
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(16px);
+      background: rgba(7, 11, 20, 0.85);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .badge {
+      display: inline-block;
+      padding: 5px 12px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: #030712;
+    }
+    .header-left { display: flex; align-items: center; gap: 16px; }
+    h1 { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.02em; }
+    .status-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      color: var(--accent);
+      background: rgba(52, 211, 153, 0.12);
+      border: 1px solid rgba(52, 211, 153, 0.35);
+      padding: 5px 14px;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 10px var(--accent);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+    main {
+      max-width: 1500px;
+      margin: 0 auto;
+      padding: 36px 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 36px;
+    }
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      margin-bottom: 16px;
+    }
+    .section-title {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .section-sub {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+    }
+    .glass-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      backdrop-filter: blur(20px);
+      box-shadow: 0 20px 40px -15px rgba(0,0,0,0.6);
+      position: relative;
+    }
+    .diagram-container {
+      background: #090e1a;
+      border: 1px solid rgba(56, 189, 248, 0.2);
+      border-radius: 12px;
+      padding: 0;
+      overflow: hidden;
+      height: 720px;
+      position: relative;
+      cursor: grab;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .diagram-container.grabbing {
+      cursor: grabbing;
+    }
+    .pan-zoom-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      transform-origin: 0 0;
+      will-change: transform;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .pan-zoom-canvas.animate {
+      transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+    pre.mermaid {
+      margin: auto;
+      pointer-events: none;
+    }
+    pre.mermaid svg {
+      max-width: none !important;
+      pointer-events: none;
+    }
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+    .zoom-level {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82rem;
+      color: var(--accent);
+      background: rgba(52, 211, 153, 0.1);
+      border: 1px solid rgba(52, 211, 153, 0.25);
+      padding: 4px 10px;
+      border-radius: 6px;
+    }
+    .pan-hint {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .tool-btn {
+      background: rgba(30, 41, 59, 0.8);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    .tool-btn:hover {
+      border-color: var(--primary);
+      background: rgba(56, 189, 248, 0.15);
+      color: var(--primary);
+    }
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 20px;
+    }
+    .card {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 22px;
+      transition: all 0.25s ease;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .card:hover {
+      border-color: var(--primary);
+      box-shadow: 0 10px 25px var(--primary-glow);
+      transform: translateY(-3px);
+    }
+    .card h3 {
+      color: var(--primary);
+      font-size: 1.1rem;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .card p {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      line-height: 1.55;
+    }
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 16px;
+    }
+    .tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      padding: 3px 10px;
+      border-radius: 6px;
+      background: rgba(56, 189, 248, 0.08);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      color: var(--primary);
+    }
+    .workflow-timeline {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      position: relative;
+    }
+    .workflow-step {
+      display: flex;
+      gap: 18px;
+      align-items: flex-start;
+      padding: 16px;
+      border-radius: 10px;
+      background: rgba(30, 41, 59, 0.35);
+      border: 1px solid rgba(51, 65, 85, 0.4);
+      transition: all 0.2s;
+    }
+    .workflow-step:hover {
+      background: rgba(30, 41, 59, 0.7);
+      border-color: rgba(56, 189, 248, 0.4);
+    }
+    .step-num {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: #030712;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 0.9rem;
+      flex-shrink: 0;
+      box-shadow: 0 0 12px var(--primary-glow);
+    }
+    .step-body h4 { font-size: 1rem; margin-bottom: 4px; color: #fff; display: flex; align-items: center; gap: 8px; }
+    .step-body p { font-size: 0.88rem; color: var(--text-muted); }
+    code {
+      font-family: 'JetBrains Mono', monospace;
+      background: rgba(56, 189, 248, 0.12);
+      color: var(--primary);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.82rem;
+    }
+    .tenants-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-top: 10px;
+    }
+    .tenant-badge {
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      padding: 12px 18px;
+      border-radius: 10px;
+      flex: 1;
+      min-width: 260px;
+    }
+    .tenant-badge strong { color: var(--accent); display: block; font-size: 0.95rem; margin-bottom: 2px; }
+    .tenant-badge span { font-size: 0.8rem; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="header-left">
+      <span class="badge">MiniERP</span>
+      <h1>İnteraktif Veritabanı ER Modeli & Sistem Mimarisi</h1>
+    </div>
+    <div class="status-badge">
+      <span class="pulse-dot"></span>
+      <span>Şema Hazır / Schema-per-Tenant</span>
+    </div>
+  </header>
+
+  <main>
+    <!-- ER Diyagramı -->
+    <div>
+      <div class="section-header">
+        <h2 class="section-title">📊 1. PostgreSQL Varlık-İlişki (ER) Diyagramı</h2>
+        <span class="section-sub">Master (Public) ve Kiracı (Tenant) Şemaları Tam İlişki Ağı</span>
+      </div>
+
+      <div class="glass-box">
+        <div class="toolbar">
+          <button class="tool-btn" onclick="zoomIn()">🔍 Yakınlaştır (+)</button>
+          <button class="tool-btn" onclick="zoomOut()">🔍 Uzaklaştır (-)</button>
+          <button class="tool-btn" onclick="resetZoom()">↺ Sıfırla (100%)</button>
+          <span class="zoom-level" id="zoomLevelIndicator">100%</span>
+          <span class="pan-hint">🖱️ Tıkla & Sürükle | ⚙️ Fare Tekerleğiyle Yakınlaştır</span>
+        </div>
+        <div class="diagram-container" id="diagramWrapper">
+          <div id="panZoomCanvas" class="pan-zoom-canvas">
+            <pre class="mermaid" id="mermaidGraph">
+erDiagram
+    %% Master Schema (public)
+    TENANTS {
+        bigint id PK
+        varchar tenant_id UK "Kiraci Kodu (tenant_tekstil vb.)"
+        varchar schema_name UK "PostgreSQL Sema Adi"
+        varchar company_name "Sirket Unvani"
+        boolean is_active "Aktiflik Durumu"
+        timestamp created_at
+        timestamp updated_at
+        bigint version
+    }
+
+    %% Tenant Schema - Stok & Urun
+    CATEGORIES {
+        bigint id PK
+        varchar code UK "Kategori Kodu"
+        varchar name "Kategori Adi"
+        text description
+        timestamp created_at
+        timestamp updated_at
+        bigint version
+    }
+
+    PRODUCTS {
+        bigint id PK
+        bigint category_id FK "Kategori Referansi"
+        varchar code UK "Urun Kodu"
+        varchar name "Urun Adi"
+        varchar base_unit "Birim (ADET, METRE, TOP)"
+        numeric tax_rate "KDV Orani (%)"
+        jsonb attributes "Dinamik Ozellikler (Kumas, Sezon)"
+        timestamp created_at
+        timestamp updated_at
+        bigint version
+    }
+
+    PRODUCT_VARIANTS {
+        bigint id PK
+        bigint product_id FK "Ana Urun Referansi"
+        varchar sku UK "Stok Kodu (SKU)"
+        varchar barcode "Barkod (EAN-13)"
+        varchar variant_name "Varyant Tanimi (Renk/Beden)"
+        numeric purchase_price "Alis Fiyati"
+        numeric sale_price "Satis Fiyati"
+        integer stock_quantity "Fiili Depo Stogu"
+        integer reserved_stock "Rezerve Siparis Stogu"
+        jsonb attributes "Renk, Beden vb."
+        timestamp created_at
+        timestamp updated_at
+        bigint version
+    }
+
+    %% Tenant Schema - Cari Hesap
+    BUSINESS_PARTNERS {
+        bigint id PK
+        varchar partner_type "CUSTOMER / SUPPLIER / BOTH"
+        varchar name "Cari Adi"
+        varchar company_title "Resmi Unvan"
+        varchar tax_number "Vergi Kimlik No"
+        varchar email "E-Posta"
+        varchar phone "Telefon"
+        text address "Adres"
+        jsonb metadata "Ek Bilgiler (Vade, Limit)"
+        timestamp created_at
+        timestamp updated_at
+        bigint version
+    }
+
+    %% Tenant Schema - Teklif
+    QUOTATIONS {
+        bigint id PK
+        varchar quotation_number UK "Teklif No (QT-2026-...)"
+        varchar type "PURCHASE / SALES"
+        bigint partner_id FK "Cari Referansi"
+        varchar status "DRAFT / SENT / ACCEPTED / REJECTED"
+        timestamp issue_date
+        timestamp valid_until
+        varchar currency
+        numeric total_amount "Genel Toplam"
+        timestamp created_at
+        timestamp updated_at
+        bigint version
+    }
+
+    QUOTATION_ITEMS {
+        bigint id PK
+        bigint quotation_id FK "Teklif Referansi"
+        bigint variant_id FK "Varyant (SKU) Referansi"
+        varchar description
+        integer quantity "Miktar"
+        numeric unit_price "Birim Fiyat"
+        numeric subtotal "Kalem Tutari"
+        timestamp created_at
+        timestamp updated_at
+        bigint version
+    }
+
+    %% Tenant Schema - Siparis
+    ORDERS {
+        bigint id PK
+        varchar order_number UK "Siparis No (SIP-SAT-...)"
+        varchar order_type "SALES_ORDER / PURCHASE_ORDER"
+        bigint partner_id FK "Cari Referansi"
+        bigint quotation_id FK "Iliskili Teklif (Opsiyonel)"
+        varchar status "DRAFT / CONFIRMED / CANCELLED / COMPLETED"
+        timestamp order_date
+        timestamp delivery_date
+        numeric total_amount "Genel Toplam"
+        timestamp created_at
+        timestamp updated_at
+        bigint version
+    }
+
+    ORDER_ITEMS {
+        bigint id PK
+        bigint order_id FK "Siparis Referansi"
+        bigint variant_id FK "Varyant (SKU) Referansi"
+        varchar description
+        integer quantity "Miktar"
+        numeric unit_price "Birim Fiyat"
+        numeric subtotal "Kalem Tutari"
+        timestamp created_at
+        timestamp updated_at
+        bigint version
+    }
+
+    %% Tenant Schema - Irsaliye
+    WAYBILLS {
+        bigint id PK
+        varchar waybill_number UK "Irsaliye No (IRS-SVK-...)"
+        varchar type "DISPATCH / RECEIPT"
+        bigint partner_id FK "Cari Referansi"
+        bigint order_id FK "Iliskili Siparis (Opsiyonel)"
+        varchar status "DRAFT / DISPATCHED / DELIVERED"
+        timestamp dispatch_date
+        varchar carrier_company "Tasiyici Lojistik Firma"
+        varchar tracking_number "Takip Kodu"
+        timestamp created_at
+        timestamp updated_at
+        bigint version
+    }
+
+    WAYBILL_ITEMS {
+        bigint id PK
+        bigint waybill_id FK "Irsaliye Referansi"
+        bigint variant_id FK "Varyant (SKU) Referansi"
+        varchar description
+        integer quantity "Sevk Miktari"
+        numeric unit_price "Birim Fiyat"
+        timestamp created_at
+        timestamp updated_at
+        bigint version
+    }
+
+    %% Tenant Schema - Guvenlik & Denetim
+    USERS {
+        bigint id PK
+        varchar username UK "Kullanici Adi"
+        varchar email UK "E-Posta"
+        varchar password_hash "Sifre Ozeti (BCrypt)"
+        varchar full_name "Ad Soyad"
+        varchar role "ROLE_ADMIN / ROLE_MANAGER / ROLE_USER"
+        boolean is_active "Aktiflik"
+        timestamp created_at
+        timestamp updated_at
+        bigint version
+    }
+
+    AUDIT_LOGS {
+        bigint id PK
+        varchar action "CREATE / UPDATE / DELETE / STATUS_CHANGE"
+        varchar entity_type "Varlik Tipi (Order vb.)"
+        bigint entity_id "Varlik ID"
+        varchar performed_by "Islemi Yapan Kullanici"
+        jsonb details "Islem JSON Differentiator"
+        timestamp performed_at
+    }
+
+    %% Iliskiler
+    CATEGORIES ||--o{ PRODUCTS : "icerir (1:N)"
+    PRODUCTS ||--|{ PRODUCT_VARIANTS : "varyantlari (1:N)"
+    BUSINESS_PARTNERS ||--o{ QUOTATIONS : "teklif verilir (1:N)"
+    BUSINESS_PARTNERS ||--o{ ORDERS : "siparis verilir (1:N)"
+    BUSINESS_PARTNERS ||--o{ WAYBILLS : "sevk edilir (1:N)"
+    QUOTATIONS ||--|{ QUOTATION_ITEMS : "satirlari (1:N)"
+    PRODUCT_VARIANTS ||--o{ QUOTATION_ITEMS : "secilir (1:N)"
+    QUOTATIONS |o--o{ ORDERS : "donusturulur (0..1:N)"
+    ORDERS ||--|{ ORDER_ITEMS : "satirlari (1:N)"
+    PRODUCT_VARIANTS ||--o{ ORDER_ITEMS : "siparis edilir (1:N)"
+    ORDERS |o--o{ WAYBILLS : "irsaliyeye donusturulur (0..1:N)"
+    WAYBILLS ||--|{ WAYBILL_ITEMS : "sevk satirlari (1:N)"
+    PRODUCT_VARIANTS ||--o{ WAYBILL_ITEMS : "sevk edilir (1:N)"
+          </pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- B2B Tedarik Zinciri Süreç Akışı -->
+    <div>
+      <div class="section-header">
+        <h2 class="section-title">⚡ 2. B2B İşletme Süreç Akışı (Order-to-Cash)</h2>
+        <span class="section-sub">Tekliften Siparişe, Otomatik Stok Rezervasyonundan Fiili İrsaliye Çıkışına</span>
+      </div>
+
+      <div class="glass-box">
+        <div class="workflow-timeline">
+          <div class="workflow-step">
+            <div class="step-num">1</div>
+            <div class="step-body">
+              <h4>📦 Cari ve Ürün Tanımlama</h4>
+              <p>Müşteri/Tedarikçi kartları <code>business_partners</code> tablosunda oluşturulur. Ana ürün kartları ve dinamik renk/beden niteliklerine sahip SKU'lar (<code>product_variants</code>) tanımlanır.</p>
+            </div>
+          </div>
+
+          <div class="workflow-step">
+            <div class="step-num">2</div>
+            <div class="step-body">
+              <h4>📝 Teklif (Quotation) Oluşturma & Mutabakat</h4>
+              <p>Müşteriye teklif iletilir (<code>quotations</code> & <code>quotation_items</code>). Durum <code>ACCEPTED</code> olduğunda tek tıkla resmi siparişe dönüştürülebilir.</p>
+            </div>
+          </div>
+
+          <div class="workflow-step">
+            <div class="step-num">3</div>
+            <div class="step-body">
+              <h4>🔒 Sipariş Onayı & Otomatik Stok Rezervasyonu</h4>
+              <p>Sipariş onaylandığında (<code>status = CONFIRMED</code>), varyantın <code>reserved_stock</code> alanı artırılarak çift sipariş (over-selling) engellenir. Bu işlem RabbitMQ (<code>order.confirmed</code>) kuyruğuna asenkron event fırlatır.</p>
+            </div>
+          </div>
+
+          <div class="workflow-step">
+            <div class="step-num">4</div>
+            <div class="step-body">
+              <h4>🚚 İrsaliye (Waybill) & Depodan Fiili Çıkış</h4>
+              <p>Sipariş sevk edildiğinde <code>waybills</code> oluşturulur (<code>status = DISPATCHED</code>). Varyantın <code>reserved_stock</code> değeri serbest bırakılırken, depodaki <code>stock_quantity</code> kalıcı olarak eksiltilir.</p>
+            </div>
+          </div>
+
+          <div class="workflow-step">
+            <div class="step-num">5</div>
+            <div class="step-body">
+              <h4>🛡️ Denetim Günlükleri & Güvenlik (Audit Logging)</h4>
+              <p>Tüm CRUD ve durum değişiklikleri <code>audit_logs</code> tablosunda işlem yapan kullanıcı adı ve JSONB veri diff'i ile anlık olarak arşivlenir.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Varsayılan B2B Kiracıları -->
+    <div>
+      <div class="section-header">
+        <h2 class="section-title">🏬 3. Entegre B2B Tedarik Zinciri Kiracıları (Multi-Tenants)</h2>
+        <span class="section-sub">Her işletme kendi izole PostgreSQL şemasında çalışır</span>
+      </div>
+
+      <div class="glass-box">
+        <div class="tenants-strip">
+          <div class="tenant-badge">
+            <strong>Atlas Tekstil & Dokuma Sanayi A.Ş.</strong>
+            <span>Şema: tenant_tekstil | Rol: Hammadde & Kumaş Üreticisi</span>
+          </div>
+          <div class="tenant-badge">
+            <strong>Vogue Hazır Giyim & Konfeksiyon Ltd.</strong>
+            <span>Şema: tenant_moda | Rol: Gömlek & Jean Konfeksiyon İmalatçısı</span>
+          </div>
+          <div class="tenant-badge">
+            <strong>Trendline Mağazacılık & E-Ticaret A.Ş.</strong>
+            <span>Şema: tenant_perakende | Rol: AVM Mağaza & Online Satış Zinciri</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    let scale = 1;
+    let translateX = 0;
+    let translateY = 0;
+    let isDragging = false;
+    let startX = 0;
+    let startY = 0;
+
+    const container = document.getElementById('diagramWrapper');
+    const canvas = document.getElementById('panZoomCanvas');
+    const zoomIndicator = document.getElementById('zoomLevelIndicator');
+
+    function updateTransform(animate = false) {
+      if (animate) {
+        canvas.classList.add('animate');
+      } else {
+        canvas.classList.remove('animate');
+      }
+      canvas.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+      if (zoomIndicator) {
+        zoomIndicator.textContent = Math.round(scale * 100) + '%';
+      }
+    }
+
+    function zoomIn() {
+      scale = Math.min(scale * 1.25, 4);
+      updateTransform(true);
+    }
+
+    function zoomOut() {
+      scale = Math.max(scale / 1.25, 0.25);
+      updateTransform(true);
+    }
+
+    function resetZoom() {
+      scale = 1;
+      translateX = 0;
+      translateY = 0;
+      updateTransform(true);
+    }
+
+    // 1. Mouse ile Sürükleme (Drag & Pan)
+    container.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return; // Sadece sol tık
+      isDragging = true;
+      startX = e.clientX - translateX;
+      startY = e.clientY - translateY;
+      container.classList.add('grabbing');
+      canvas.classList.remove('animate');
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      translateX = e.clientX - startX;
+      translateY = e.clientY - startY;
+      updateTransform(false);
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (isDragging) {
+        isDragging = false;
+        container.classList.remove('grabbing');
+      }
+    });
+
+    // 2. Fare Tekerleği ile İmlece Doğru Yakınlaştırma (Smooth Wheel Zoom)
+    container.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const rect = container.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      const zoomFactor = e.deltaY < 0 ? 1.15 : 0.87;
+      const newScale = Math.min(Math.max(scale * zoomFactor, 0.25), 4);
+
+      // İmlecin baktığı noktayı merkez alarak yakınlaştır
+      translateX = mouseX - (mouseX - translateX) * (newScale / scale);
+      translateY = mouseY - (mouseY - translateY) * (newScale / scale);
+      scale = newScale;
+      updateTransform(false);
+    }, { passive: false });
+
+    // 3. Dokunmatik Ekran Desteği (Touch Pan & Pinch Zoom)
+    let initialPinchDist = null;
+    let initialTouchScale = 1;
+    let touchStartX = 0;
+    let touchStartY = 0;
+
+    container.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 1) {
+        isDragging = true;
+        touchStartX = e.touches[0].clientX - translateX;
+        touchStartY = e.touches[0].clientY - translateY;
+      } else if (e.touches.length === 2) {
+        isDragging = false;
+        initialPinchDist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        initialTouchScale = scale;
+      }
+    }, { passive: true });
+
+    container.addEventListener('touchmove', (e) => {
+      if (e.touches.length === 1 && isDragging) {
+        translateX = e.touches[0].clientX - touchStartX;
+        translateY = e.touches[0].clientY - touchStartY;
+        updateTransform(false);
+      } else if (e.touches.length === 2 && initialPinchDist) {
+        const currentDist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        const factor = currentDist / initialPinchDist;
+        scale = Math.min(Math.max(initialTouchScale * factor, 0.25), 4);
+        updateTransform(false);
+      }
+    }, { passive: true });
+
+    container.addEventListener('touchend', () => {
+      isDragging = false;
+      initialPinchDist = null;
+    }, { passive: true });
+
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      themeVariables: {
+        darkMode: true,
+        background: '#090e1a',
+        primaryColor: '#1e293b',
+        primaryTextColor: '#f8fafc',
+        primaryBorderColor: '#38bdf8',
+        lineColor: '#38bdf8',
+        secondaryColor: '#0f172a',
+        tertiaryColor: '#1e1b4b'
+      },
+      er: { useMaxWidth: false }
+    });
+  </script>
+</body>
+</html>
