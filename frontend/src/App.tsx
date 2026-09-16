@@ -11,6 +11,7 @@ import { QuotationsPage } from './pages/QuotationsPage';
 import { OrdersPage } from './pages/OrdersPage';
 import { WaybillsPage } from './pages/WaybillsPage';
 import { AuditLogsPage } from './pages/AuditLogsPage';
+import { SystemInfoPage } from './pages/SystemInfoPage';
 
 // Protected Route Guard
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -46,6 +47,7 @@ export const App: React.FC = () => {
             <Route path="orders" element={<OrdersPage />} />
             <Route path="waybills" element={<WaybillsPage />} />
             <Route path="audit-logs" element={<AuditLogsPage />} />
+            <Route path="info" element={<SystemInfoPage />} />
           </Route>
 
           {/* Fallback to Home */}

@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MiniERP - Veritabanı ER Diyagramı (Database Architecture)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    :root {
+      --bg-main: #0B0F19;
+      --bg-card: rgba(17, 24, 39, 0.85);
+      --border-color: rgba(75, 85, 99, 0.4);
+      --primary: #38bdf8;
+      --secondary: #818cf8;
+      --accent: #34d399;
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      padding: 24px 36px;
+      background: linear-gradient(180deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0) 100%);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .brand-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .badge {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: #030712;
+    }
+
+    h1 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .stats {
+      display: flex;
+      gap: 20px;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .stat-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .stat-item strong {
+      color: var(--primary);
+    }
+
+    main {
+      flex: 1;
+      padding: 32px 36px;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+      max-width: 1600px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .diagram-container {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 32px;
+      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(16px);
+      overflow-x: auto;
+    }
+
+    .mermaid {
+      display: flex;
+      justify-content: center;
+    }
+
+    .modules-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 20px;
+    }
+
+    .module-card {
+      background: rgba(17, 24, 39, 0.6);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 20px;
+      transition: all 0.2s ease;
+    }
+
+    .module-card:hover {
+      border-color: var(--primary);
+      transform: translateY(-2px);
+      box-shadow: 0 10px 25px -5px rgba(56, 189, 248, 0.15);
+    }
+
+    .module-card h3 {
+      font-size: 1.05rem;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--primary);
+    }
+
+    .module-card p {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    .table-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 14px;
+    }
+
+    .table-tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: rgba(56, 189, 248, 0.1);
+      border: 1px solid rgba(56, 189, 248, 0.2);
+      color: var(--primary);
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand-title">
+      <span class="badge">ER Architecture</span>
+      <h1>MiniERP Veritabanı Varlık-İlişki Diyagramı</h1>
+    </div>
+    <div class="stats">
+      <div class="stat-item"><span>Mimari:</span> <strong>Schema-per-Tenant</strong></div>
+      <div class="stat-item"><span>Şema:</span> <strong>PostgreSQL</strong></div>
+      <div class="stat-item"><span>Tablo Sayısı:</span> <strong>12 Tablo</strong></div>
+    </div>
+  </header>
+
+  <main>
+    <div class="diagram-container">
+      <pre class="mermaid">
+erDiagram
+    %% Master Schema (public)
+    TENANTS {
+        bigint id PK
+        varchar tenant_id UK "Kiracı Kodu"
+        varchar schema_name UK "PostgreSQL Şema Adı"
+        varchar company_name "İşletme Ünvanı"
+        boolean is_active "Aktiflik"
+        timestamp created_at
+        timestamp updated_at
+        bigint version
+    }
+
+    %% Tenant Schema - Stok & Ürün Modülü
+    CATEGORIES {
+        bigint id PK
+        varchar code UK "Kategori Kodu"
+        varchar name "Kategori Adı"
+        text description
+        timestamp created_at
+        timestamp updated_at
+        bigint version
+    }
+
+    PRODUCTS {
+        bigint id PK
+        bigint category_id FK "Kategori Referansı"
+        varchar code UK "Ürün Kodu"
+        varchar name "Ürün Adı"
+        varchar base_unit "Temel Birim"
+        numeric tax_rate "KDV Oranı"
+        jsonb attributes "Dinamik Özellikler"
+        timestamp created_at
+        timestamp updated_at
+        bigint version
+    }
+
+    PRODUCT_VARIANTS {
+        bigint id PK
+        bigint product_id FK "Ana Ürün"
+        varchar sku UK "Stok Kodu (SKU)"
+        varchar barcode "Barkod"
+        varchar variant_name "Varyant Tanımı"
+        numeric purchase_price "Alış Fiyatı"
+        numeric sale_price "Satış Fiyatı"
+        integer stock_quantity "Fiili Depo Stoğu"
+        integer reserved_stock "Rezerve Sipariş Stoğu"
+        jsonb attributes "Renk, Beden vb."
+        timestamp created_at
+        timestamp updated_at
+        bigint version
+    }
+
+    %% Tenant Schema - Cari Hesap Modülü
+    BUSINESS_PARTNERS {
+        bigint id PK
+        varchar partner_type "CUSTOMER / SUPPLIER"
+        varchar name "Cari Adı"
+        varchar company_title "Resmi Ünvan"
+        varchar tax_number "VKN"
+        varchar email "E-Posta"
+        varchar phone "Telefon"
+        text address "Adres"
+        jsonb metadata "Ek Bilgiler"
+        timestamp created_at
+        timestamp updated_at
+        bigint version
+    }
+
+    %% Tenant Schema - Teklif Modülü
+    QUOTATIONS {
+        bigint id PK
+        varchar quotation_number UK "Teklif No"
+        varchar type "PURCHASE / SALES"
+        bigint partner_id FK "Cari Hesap"
+        varchar status "DRAFT / SENT / ACCEPTED"
+        timestamp issue_date
+        timestamp valid_until
+        varchar currency
+        numeric total_amount "Genel Toplam"
+        timestamp created_at
+        timestamp updated_at
+        bigint version
+    }
+
+    QUOTATION_ITEMS {
+        bigint id PK
+        bigint quotation_id FK "Teklif"
+        bigint variant_id FK "Ürün Varyantı"
+        varchar description
+        integer quantity "Miktar"
+        numeric unit_price "Birim Fiyat"
+        numeric subtotal "Ara Toplam"
+        timestamp created_at
+        timestamp updated_at
+        bigint version
+    }
+
+    %% Tenant Schema - Sipariş Modülü
+    ORDERS {
+        bigint id PK
+        varchar order_number UK "Sipariş No"
+        varchar order_type "SALES_ORDER / PURCHASE_ORDER"
+        bigint partner_id FK "Cari Hesap"
+        bigint quotation_id FK "İlişkili Teklif"
+        varchar status "DRAFT / CONFIRMED / COMPLETED"
+        timestamp order_date
+        timestamp delivery_date
+        numeric total_amount "Genel Toplam"
+        timestamp created_at
+        timestamp updated_at
+        bigint version
+    }
+
+    ORDER_ITEMS {
+        bigint id PK
+        bigint order_id FK "Sipariş"
+        bigint variant_id FK "Ürün Varyantı"
+        varchar description
+        integer quantity "Miktar"
+        numeric unit_price "Birim Fiyat"
+        numeric subtotal "Ara Toplam"
+        timestamp created_at
+        timestamp updated_at
+        bigint version
+    }
+
+    %% Tenant Schema - İrsaliye Modülü
+    WAYBILLS {
+        bigint id PK
+        varchar waybill_number UK "İrsaliye No"
+        varchar type "DISPATCH / RECEIPT"
+        bigint partner_id FK "Cari Hesap"
+        bigint order_id FK "İlişkili Sipariş"
+        varchar status "DRAFT / DISPATCHED / DELIVERED"
+        timestamp dispatch_date
+        varchar carrier_company "Taşıyıcı"
+        varchar tracking_number "Takip Kodu"
+        timestamp created_at
+        timestamp updated_at
+        bigint version
+    }
+
+    WAYBILL_ITEMS {
+        bigint id PK
+        bigint waybill_id FK "İrsaliye"
+        bigint variant_id FK "Ürün Varyantı"
+        varchar description
+        integer quantity "Sevk Miktarı"
+        numeric unit_price "Birim Fiyat"
+        timestamp created_at
+        timestamp updated_at
+        bigint version
+    }
+
+    %% Tenant Schema - Kullanıcılar & Denetim
+    USERS {
+        bigint id PK
+        varchar username UK "Kullanıcı Adı"
+        varchar email UK "E-Posta"
+        varchar password_hash "Şifre Özeti"
+        varchar full_name "Ad Soyad"
+        varchar role "Rol"
+        boolean is_active "Aktif"
+        timestamp created_at
+        timestamp updated_at
+        bigint version
+    }
+
+    AUDIT_LOGS {
+        bigint id PK
+        varchar action "CREATE / UPDATE / DELETE"
+        varchar entity_type "Varlık Tipi"
+        bigint entity_id "Varlık ID"
+        varchar performed_by "Kullanıcı"
+        jsonb details "İşlem Detayı"
+        timestamp performed_at
+    }
+
+    %% İlişkiler
+    CATEGORIES ||--o{ PRODUCTS : "içerir"
+    PRODUCTS ||--|{ PRODUCT_VARIANTS : "varyantları"
+
+    BUSINESS_PARTNERS ||--o{ QUOTATIONS : "teklif"
+    BUSINESS_PARTNERS ||--o{ ORDERS : "sipariş"
+    BUSINESS_PARTNERS ||--o{ WAYBILLS : "irsaliye"
+
+    QUOTATIONS ||--|{ QUOTATION_ITEMS : "satırlar"
+    PRODUCT_VARIANTS ||--o{ QUOTATION_ITEMS : "kalem"
+
+    QUOTATIONS |o--o{ ORDERS : "dönüştürülür"
+    ORDERS ||--|{ ORDER_ITEMS : "satırlar"
+    PRODUCT_VARIANTS ||--o{ ORDER_ITEMS : "kalem"
+
+    ORDERS |o--o{ WAYBILLS : "irsaliyeye dönüştürülür"
+    WAYBILLS ||--|{ WAYBILL_ITEMS : "satırlar"
+    PRODUCT_VARIANTS ||--o{ WAYBILL_ITEMS : "sevk edilir"
+      </pre>
+    </div>
+
+    <div class="modules-grid">
+      <div class="module-card">
+        <h3>🏬 Çoklu Kiracılık (Multi-Tenancy)</h3>
+        <p>Master şemada yer alan <code>tenants</code> tablosu ile PostgreSQL üzerinde her işletmeye özel izole şema (<code>schema_name</code>) yönetimi sağlanır.</p>
+        <div class="table-tags">
+          <span class="table-tag">tenants</span>
+        </div>
+      </div>
+
+      <div class="module-card">
+        <h3>📦 Stok & Ürün Yönetimi</h3>
+        <p>Kategoriler, genel ürün şablonu (Product) ve fiziksel barkod/SKU/fiyat/stok hareketlerini tutan dinamik JSONB destekli varyantlar (ProductVariant).</p>
+        <div class="table-tags">
+          <span class="table-tag">categories</span>
+          <span class="table-tag">products</span>
+          <span class="table-tag">product_variants</span>
+        </div>
+      </div>
+
+      <div class="module-card">
+        <h3>🤝 Cari Hesaplar (CRM)</h3>
+        <p>Müşteri (Customer), Tedarikçi (Supplier) veya her ikisi olan ticari iş ortakları, vergi bilgileri ve dinamik metadata alanları.</p>
+        <div class="table-tags">
+          <span class="table-tag">business_partners</span>
+        </div>
+      </div>
+
+      <div class="module-card">
+        <h3>📑 B2B Belge Akışı (Order-to-Cash)</h3>
+        <p>Teklif (Quotation) onaylandığında Siparişe (Order), sipariş hazırlandığında ise fiziksel sevkiyat için İrsaliyeye (Waybill) dönüştürülür.</p>
+        <div class="table-tags">
+          <span class="table-tag">quotations</span>
+          <span class="table-tag">orders</span>
+          <span class="table-tag">waybills</span>
+        </div>
+      </div>
+
+      <div class="module-card">
+        <h3>🔐 Güvenlik ve Denetim (Audit)</h3>
+        <p>Kiracı bazlı kullanıcı kimlik doğrulaması ve her varlık üzerinde gerçekleştirilen CRUD/durum değişikliklerinin JSON diff ile saklandığı loglama.</p>
+        <div class="table-tags">
+          <span class="table-tag">users</span>
+          <span class="table-tag">audit_logs</span>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      themeVariables: {
+        darkMode: true,
+        background: '#0B0F19',
+        primaryColor: '#1e293b',
+        primaryTextColor: '#f8fafc',
+        primaryBorderColor: '#38bdf8',
+        lineColor: '#38bdf8',
+        secondaryColor: '#0f172a',
+        tertiaryColor: '#1e1b4b'
+      },
+      er: {
+        useMaxWidth: true
+      }
+    });
+  </script>
+</body>
+</html>

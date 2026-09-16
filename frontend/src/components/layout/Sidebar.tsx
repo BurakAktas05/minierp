@@ -12,6 +12,7 @@ import {
   LogOut,
   Layers,
   Building,
+  Database,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -26,6 +27,7 @@ export const Sidebar: React.FC = () => {
     { name: 'B2B Teklifler', path: '/quotations', icon: FileSpreadsheet },
     { name: 'Resmi Siparişler', path: '/orders', icon: ShoppingCart },
     { name: 'İrsaliye & Sevkiyat', path: '/waybills', icon: Truck },
+    { name: 'ER & Sistem Şeması', path: '/info', icon: Database },
   ];
 
   if (isAdmin) {

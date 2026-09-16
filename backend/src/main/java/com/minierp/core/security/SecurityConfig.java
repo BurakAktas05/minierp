@@ -47,6 +47,7 @@ public class SecurityConfig {
                         // Public endpoint'ler (Kimlik doğrulama gerektirmeyen)
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/api/v1/tenants/**").permitAll()
+                        .requestMatchers("/bilgilendirme", "/api/v1/bilgilendirme", "/api/v1/bilgilendirme/**").permitAll()
 
                         // Sipariş Onaylama / İptal: Sadece MANAGER ve ADMIN
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/orders/*/status").hasAnyRole("MANAGER", "ADMIN")
@@ -75,7 +76,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:3000", "http://localhost:5173"));
+        configuration.setAllowedOriginPatterns(List.of("*"));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setExposedHeaders(List.of("Authorization"));
