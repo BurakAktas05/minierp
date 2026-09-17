@@ -41,6 +41,14 @@ public class QuotationController {
         return ResponseEntity.ok(ApiResponse.success(quotation));
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<ApiResponse<QuotationResponse>> updateQuotation(
+            @PathVariable Long id,
+            @Valid @RequestBody CreateQuotationRequest request) {
+        QuotationResponse response = quotationService.updateQuotation(id, request);
+        return ResponseEntity.ok(ApiResponse.success("Teklif başarıyla güncellendi", response));
+    }
+
     @PatchMapping("/{id}/status")
     public ResponseEntity<ApiResponse<QuotationResponse>> updateStatus(
             @PathVariable Long id,

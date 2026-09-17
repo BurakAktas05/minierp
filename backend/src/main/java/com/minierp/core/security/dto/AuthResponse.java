@@ -1,5 +1,6 @@
 package com.minierp.core.security.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -15,6 +16,11 @@ import lombok.NoArgsConstructor;
 public class AuthResponse {
 
     private String accessToken;
+
+    @JsonProperty("token")
+    public String getToken() {
+        return accessToken;
+    }
 
     @Builder.Default
     private String tokenType = "Bearer";

@@ -27,6 +27,9 @@ public class WaybillItem extends BaseEntity {
     @JoinColumn(name = "variant_id", nullable = false)
     private ProductVariant variant;
 
+    @Column(name = "order_item_id")
+    private Long orderItemId;
+
     private String description;
 
     @Column(nullable = false)
@@ -35,4 +38,7 @@ public class WaybillItem extends BaseEntity {
     @Builder.Default
     @Column(name = "unit_price", nullable = false, precision = 15, scale = 2)
     private BigDecimal unitPrice = BigDecimal.ZERO;
+
+    @Column(name = "lot_number", length = 50)
+    private String lotNumber;
 }

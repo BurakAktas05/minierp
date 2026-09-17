@@ -27,6 +27,12 @@ import com.minierp.modules.tenant.repository.TenantRepository;
 import com.minierp.modules.waybill.entity.Waybill;
 import com.minierp.modules.waybill.entity.WaybillItem;
 import com.minierp.modules.waybill.entity.WaybillStatus;
+import com.minierp.modules.invoice.entity.*;
+import com.minierp.modules.invoice.repository.InvoiceRepository;
+import com.minierp.modules.invoice.repository.PaymentRepository;
+import com.minierp.modules.manufacturing.entity.*;
+import com.minierp.modules.manufacturing.repository.BillOfMaterialsRepository;
+import com.minierp.modules.manufacturing.repository.WorkOrderRepository;
 import com.minierp.modules.waybill.entity.WaybillType;
 import com.minierp.modules.waybill.repository.WaybillRepository;
 import lombok.RequiredArgsConstructor;
@@ -69,6 +75,10 @@ public class DataInitializer implements ApplicationRunner {
     private final QuotationRepository quotationRepository;
     private final OrderRepository orderRepository;
     private final WaybillRepository waybillRepository;
+    private final InvoiceRepository invoiceRepository;
+    private final PaymentRepository paymentRepository;
+    private final BillOfMaterialsRepository bomRepository;
+    private final WorkOrderRepository workOrderRepository;
     private final AuditLogRepository auditLogRepository;
     private final PasswordEncoder passwordEncoder;
     private final PlatformTransactionManager transactionManager;
@@ -102,6 +112,7 @@ public class DataInitializer implements ApplicationRunner {
         createTenantIfMissing("tenant_tekstil", "Atlas Tekstil & Dokuma Sanayi A.Ş.", "tenant_tekstil");
         createTenantIfMissing("tenant_moda", "Vogue Hazır Giyim & Konfeksiyon Ltd.", "tenant_moda");
         createTenantIfMissing("tenant_perakende", "Trendline Mağazacılık & E-Ticaret A.Ş.", "tenant_perakende");
+        createTenantIfMissing("tenant_aktas", "Aktaş Holding A.Ş. - Teknoloji & Çözüm Portalı", "tenant_aktas");
     }
 
     private void createTenantIfMissing(String tenantId, String companyName, String schemaName) {
@@ -141,6 +152,8 @@ public class DataInitializer implements ApplicationRunner {
                     seedVogueHazirGiyim();
                 } else if ("tenant_perakende".equals(tenant.getTenantId())) {
                     seedTrendlinePerakende();
+                } else if ("tenant_aktas".equals(tenant.getTenantId())) {
+                    seedAktasHolding();
                 }
 
                 return null;
@@ -381,6 +394,53 @@ public class DataInitializer implements ApplicationRunner {
         waybillToVogue.addItem(WaybillItem.builder().variant(varOxfBlu).description("Oxford Mavi Kumaş Topu").quantity(30).unitPrice(new BigDecimal("4500.00")).build());
         waybillRepository.save(waybillToVogue);
 
+        // Satış Faturası (Vogue fabrikasına sevk edilen kumaşlar için fatura)
+        Invoice invoiceToVogue = Invoice.builder()
+                .invoiceNumber("FTR-SAT-2026-TEK-001")
+                .invoiceType(InvoiceType.SALES_INVOICE)
+                .partner(partnerVogue)
+                .orderId(orderFromVogue.getId())
+                .waybillId(waybillToVogue.getId())
+                .status(InvoiceStatus.PARTIALLY_PAID)
+                .invoiceDate(OffsetDateTime.now().minusDays(1))
+                .dueDate(OffsetDateTime.now().plusDays(29))
+                .currency("TRY")
+                .exchangeRate(BigDecimal.ONE)
+                .subtotalAmount(new BigDecimal("135000.00"))
+                .taxAmount(new BigDecimal("13500.00"))
+                .totalAmount(new BigDecimal("148500.00"))
+                .paidAmount(new BigDecimal("50000.00"))
+                .remainingAmount(new BigDecimal("98500.00"))
+                .notes("IRS-SVK-2026-TEK-001 nolu irsaliyeden faturalaştırıldı.")
+                .build();
+        invoiceToVogue.addItem(InvoiceItem.builder()
+                .variant(varOxfBlu)
+                .description("Oxford Mavi Kumaş Topu (50m)")
+                .quantity(new BigDecimal("30"))
+                .unitPrice(new BigDecimal("4500.00"))
+                .taxRate(new BigDecimal("10.00"))
+                .discountRate(BigDecimal.ZERO)
+                .subtotal(new BigDecimal("135000.00"))
+                .build());
+        invoiceRepository.save(invoiceToVogue);
+
+        // Tahsilat (Vogue'dan alınan peşinat)
+        Payment paymentFromVogue = Payment.builder()
+                .paymentNumber("ODM-2026-TEK-001")
+                .paymentType(PaymentType.INCOMING)
+                .invoice(invoiceToVogue)
+                .partner(partnerVogue)
+                .amount(new BigDecimal("50000.00"))
+                .currency("TRY")
+                .exchangeRate(BigDecimal.ONE)
+                .paymentMethod(PaymentMethod.BANK_TRANSFER)
+                .paymentDate(OffsetDateTime.now().minusHours(6))
+                .referenceNumber("HAV-89102394")
+                .status(PaymentStatus.COMPLETED)
+                .notes("İş Bankası ticari hesaba gelen ön peşinat havalesi.")
+                .build();
+        paymentRepository.save(paymentFromVogue);
+
         // Audit Log
         auditLogRepository.save(AuditLog.builder()
                 .action("ORDER_CONFIRMED")
@@ -552,6 +612,93 @@ public class DataInitializer implements ApplicationRunner {
         waybillToTrendline.addItem(WaybillItem.builder().variant(varGmkBluM).description("Oxford Gömlek (M / Açık Mavi)").quantity(60).unitPrice(new BigDecimal("480.00")).build());
         waybillRepository.save(waybillToTrendline);
 
+        // Satış Faturası (Trendline Mağazacılık'a sevk edilen gömlekler için fatura)
+        Invoice invoiceToTrendline = Invoice.builder()
+                .invoiceNumber("FTR-SAT-2026-VOG-001")
+                .invoiceType(InvoiceType.SALES_INVOICE)
+                .partner(partnerTrendline)
+                .orderId(orderFromTrendline.getId())
+                .waybillId(waybillToTrendline.getId())
+                .status(InvoiceStatus.APPROVED)
+                .invoiceDate(OffsetDateTime.now().minusHours(8))
+                .dueDate(OffsetDateTime.now().plusDays(25))
+                .currency("TRY")
+                .exchangeRate(BigDecimal.ONE)
+                .subtotalAmount(new BigDecimal("28800.00"))
+                .taxAmount(new BigDecimal("2880.00"))
+                .totalAmount(new BigDecimal("31680.00"))
+                .paidAmount(BigDecimal.ZERO)
+                .remainingAmount(new BigDecimal("31680.00"))
+                .notes("IRS-SVK-2026-VOG-001 irsaliyesi teslimat faturası.")
+                .build();
+        invoiceToTrendline.addItem(InvoiceItem.builder()
+                .variant(varGmkBluM)
+                .description("Oxford Slim Fit Gömlek (M / Açık Mavi)")
+                .quantity(new BigDecimal("60"))
+                .unitPrice(new BigDecimal("480.00"))
+                .taxRate(new BigDecimal("10.00"))
+                .discountRate(BigDecimal.ZERO)
+                .subtotal(new BigDecimal("28800.00"))
+                .build());
+        invoiceRepository.save(invoiceToTrendline);
+
+        // ==========================================
+        // Üretim Reçetesi (BOM) & İş Emirleri
+        // ==========================================
+        Category catHam = categoryRepository.save(Category.builder().name("Hammadde & Aksesuar").code("KAT-HAM-VOG").description("Kumaş topları, düğme ve tela").build());
+        Product prodHamKumas = Product.builder().name("Ham Dokuma Kumaş Rulosu (50m)").code("PRD-RAW-KMS").category(catHam).baseUnit("TOP").build();
+        ProductVariant varHamKumas = ProductVariant.builder().sku("RAW-KMS-OXF").variantName("Oxford Mavi Kumaş Topu").purchasePrice(new BigDecimal("4500.00")).stockQuantity(25).reservedStock(0).build();
+        prodHamKumas.addVariant(varHamKumas);
+        productRepository.save(prodHamKumas);
+
+        Product prodAksesuar = Product.builder().name("Sedef Gömlek Düğmesi (1000'lik Paket)").code("PRD-RAW-DGM").category(catHam).baseUnit("PAKET").build();
+        ProductVariant varAksesuar = ProductVariant.builder().sku("RAW-DGM-SDF").variantName("Sedef Düğme Paketi").purchasePrice(new BigDecimal("150.00")).stockQuantity(40).reservedStock(0).build();
+        prodAksesuar.addVariant(varAksesuar);
+        productRepository.save(prodAksesuar);
+
+        BillOfMaterials bomGomlek = BillOfMaterials.builder()
+                .bomCode("BOM-GMK-OXF-01")
+                .name("Oxford Slim Fit Gömlek Konfeksiyon Reçetesi")
+                .variant(varGmkBluM)
+                .quantity(BigDecimal.ONE)
+                .unit("ADET")
+                .industryType("TEXTILE")
+                .metadata(Map.of("dikimSuresiDk", 25, "utuPaketDk", 8, "hatNo", "Bant-2"))
+                .build();
+        bomGomlek.addItem(BomItem.builder().componentVariant(varHamKumas).quantity(new BigDecimal("0.032")).unit("TOP").scrapRate(new BigDecimal("2.0")).description("Gömlek başına 1.6 metre kumaş sarfiyatı").build());
+        bomGomlek.addItem(BomItem.builder().componentVariant(varAksesuar).quantity(new BigDecimal("0.008")).unit("PAKET").scrapRate(BigDecimal.ZERO).description("8 adet sedef düğme").build());
+        bomRepository.save(bomGomlek);
+
+        WorkOrder woCompleted = WorkOrder.builder()
+                .orderNumber("WO-2026-VOG-001")
+                .bom(bomGomlek)
+                .sourceWarehouse(whVogGungoren)
+                .targetWarehouse(whVogGungoren)
+                .plannedQuantity(new BigDecimal("100"))
+                .producedQuantity(new BigDecimal("100"))
+                .status(WorkOrderStatus.COMPLETED)
+                .priority("HIGH")
+                .startDate(OffsetDateTime.now().minusDays(3))
+                .completionDate(OffsetDateTime.now().minusDays(1))
+                .notes("Trendline toptan siparişine istinaden 100 adet gömlek dikimi tamamlandı.")
+                .build();
+        workOrderRepository.save(woCompleted);
+
+        WorkOrder woInProgress = WorkOrder.builder()
+                .orderNumber("WO-2026-VOG-002")
+                .bom(bomGomlek)
+                .sourceWarehouse(whVogGungoren)
+                .targetWarehouse(whVogGungoren)
+                .plannedQuantity(new BigDecimal("50"))
+                .producedQuantity(new BigDecimal("20"))
+                .status(WorkOrderStatus.IN_PROGRESS)
+                .priority("NORMAL")
+                .startDate(OffsetDateTime.now().minusHours(4))
+                .dueDate(OffsetDateTime.now().plusDays(2))
+                .notes("Haftalık reyon takviyesi dikim bandında.")
+                .build();
+        workOrderRepository.save(woInProgress);
+
         auditLogRepository.save(AuditLog.builder()
                 .action("ORDER_CONFIRMED")
                 .entityType("Order")
@@ -719,5 +866,41 @@ public class DataInitializer implements ApplicationRunner {
                 .performedBy("admin")
                 .details(Map.of("orderNumber", purchaseOrderToVogue.getOrderNumber(), "partner", partnerVogue.getName()))
                 .build());
+    }
+
+    // =========================================================================
+    // 4. KİRACI: AKTAŞ HOLDİNG A.Ş. (ERP Çözüm Ortağı & Teknoloji Holdingi)
+    // =========================================================================
+    private void seedAktasHolding() {
+        Category catDanismanlik = categoryRepository.save(Category.builder().name("Kurumsal ERP & Danışmanlık").code("KAT-AKT-01").description("MiniERP çözüm ortaklığı ve implementasyon").build());
+        Category catBulut = categoryRepository.save(Category.builder().name("SaaS Bulut Hizmetleri & Altyapı").code("KAT-AKT-02").description("Yüksek erişilebilirlikli bulut altyapı barındırma").build());
+
+        Product prodErp = Product.builder()
+                .name("MiniERP Kurumsal Çözüm Lisansı & Danışmanlık")
+                .code("PRD-AKT-01")
+                .category(catDanismanlik)
+                .baseUnit("AY")
+                .taxRate(new BigDecimal("20.00"))
+                .description("Çözüm ortaklığı kapsamında aylık ERP platform lisansı ve mimari danışmanlık.")
+                .attributes(Map.of("hizmetTipi", "Yazılım & Danışmanlık", "kapsam", "Sınırsız Kullanıcı"))
+                .build();
+
+        ProductVariant varErp = ProductVariant.builder()
+                .sku("AKT-ERP-LIC-01").barcode("86890001001").variantName("Yıllık Sözleşmeli Kurumsal Lisans Paketi")
+                .purchasePrice(new BigDecimal("25000.00")).salePrice(new BigDecimal("75000.00"))
+                .stockQuantity(999).reservedStock(0).attributes(Map.of("donem", "Aylık"))
+                .build();
+        prodErp.addVariant(varErp);
+        productRepository.save(prodErp);
+
+        Warehouse whAktas = warehouseRepository.save(Warehouse.builder()
+                .code("WH-AKT-01")
+                .name("Maslak Genel Merkez & Dijital Hizmetler")
+                .location("İstanbul / Maslak")
+                .address("Büyükdere Caddesi Aktaş Plaza Kat:24 Maslak / İstanbul")
+                .isActive(true)
+                .build());
+
+        createWarehouseStock(whAktas, varErp, 999, 0, "DIJITAL-01");
     }
 }

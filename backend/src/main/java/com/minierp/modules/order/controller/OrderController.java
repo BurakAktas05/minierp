@@ -48,6 +48,14 @@ public class OrderController {
         return ResponseEntity.ok(ApiResponse.success(order));
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<ApiResponse<OrderResponse>> updateOrder(
+            @PathVariable Long id,
+            @Valid @RequestBody CreateOrderRequest request) {
+        OrderResponse response = orderService.updateOrder(id, request);
+        return ResponseEntity.ok(ApiResponse.success("Sipariş başarıyla güncellendi", response));
+    }
+
     @PatchMapping("/{id}/status")
     public ResponseEntity<ApiResponse<OrderResponse>> updateStatus(
             @PathVariable Long id,

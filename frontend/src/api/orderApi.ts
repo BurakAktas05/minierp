@@ -1,43 +1,39 @@
-import { apiClient, apiRequest, mockStore } from './client';
+import { apiClient } from './client';
 import { Order, OrderStatus, OrderType, CreateOrderRequest } from '../types';
 
 export const orderApi = {
   getOrders: async (type?: OrderType): Promise<Order[]> => {
-    return apiRequest(
-      () => apiClient.get<Order[]>('/orders', { params: { type } }),
-      () => mockStore.getOrders(type)
-    );
+    const res = await apiClient.get<Order[]>('/orders', { params: { type } });
+    return Array.isArray(res.data) ? res.data : [];
   },
 
   getOrderById: async (id: number): Promise<Order> => {
-    return apiRequest(
-      () => apiClient.get<Order>(`/orders/${id}`),
-      () => {
-        const o = mockStore.getOrders().find((item) => item.id === id);
-        if (!o) throw new Error('Sipariş bulunamadı');
-        return o;
-      }
-    );
+    const res = await apiClient.get<Order>(`/orders/${id}`);
+    return res.data;
   },
 
   createOrder: async (data: CreateOrderRequest): Promise<Order> => {
-    return apiRequest(
-      () => apiClient.post<Order>('/orders', data),
-      () => mockStore.addOrder(data)
-    );
+    const res = await apiClient.post<Order>('/orders', data);
+    return res.data;
+  },
+
+  updateOrder: async (id: number, data: CreateOrderRequest): Promise<Order> => {
+    const res = await apiClient.put<Order>(`/orders/${id}`, data);
+    return res.data;
+  },
+
+  convertQuotationToOrder: async (quotationId: number): Promise<Order> => {
+    const res = await apiClient.post<Order>(`/orders/from-quotation/${quotationId}`);
+    return res.data;
   },
 
   createOrderFromQuotation: async (quotationId: number): Promise<Order> => {
-    return apiRequest(
-      () => apiClient.post<Order>(`/orders/from-quotation/${quotationId}`),
-      () => mockStore.convertQuotationToOrder(quotationId)
-    );
+    const res = await apiClient.post<Order>(`/orders/from-quotation/${quotationId}`);
+    return res.data;
   },
 
   updateStatus: async (id: number, status: OrderStatus): Promise<Order> => {
-    return apiRequest(
-      () => apiClient.patch<Order>(`/orders/${id}/status`, null, { params: { status } }),
-      () => mockStore.updateOrderStatus(id, status)
-    );
+    const res = await apiClient.patch<Order>(`/orders/${id}/status`, null, { params: { status } });
+    return res.data;
   },
 };

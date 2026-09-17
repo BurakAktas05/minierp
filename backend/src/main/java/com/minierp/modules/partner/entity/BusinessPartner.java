@@ -22,6 +22,9 @@ import java.util.Map;
 @Builder
 public class BusinessPartner extends BaseEntity {
 
+    @Column(length = 20, unique = true)
+    private String code;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "partner_type", nullable = false, length = 30)
     private PartnerType partnerType;

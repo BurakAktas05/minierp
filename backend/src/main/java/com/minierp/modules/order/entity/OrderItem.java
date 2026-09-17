@@ -32,6 +32,10 @@ public class OrderItem extends BaseEntity {
     @Column(nullable = false)
     private Integer quantity;
 
+    @Builder.Default
+    @Column(name = "delivered_quantity", nullable = false)
+    private Integer deliveredQuantity = 0;
+
     @Column(name = "unit_price", nullable = false, precision = 15, scale = 2)
     private BigDecimal unitPrice;
 

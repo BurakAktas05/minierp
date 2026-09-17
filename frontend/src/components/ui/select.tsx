@@ -1,5 +1,23 @@
 import React from 'react';
 
+/**
+ * ============================================================================
+ * MiniERP - Select (Açılır Liste) Bileşeni
+ * ============================================================================
+ * Kullanım Örneği:
+ * 
+ * <Select
+ *   label="Kategori"
+ *   value={selectedCategory}
+ *   onChange={(e) => setSelectedCategory(e.target.value)}
+ *   options={[
+ *     { value: '1', label: 'Elektronik' },
+ *     { value: '2', label: 'Giyim' }
+ *   ]}
+ *   error={errors.category}
+ * />
+ */
+
 export interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   label?: string;
   error?: string;
@@ -14,7 +32,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
       <div className="w-full space-y-1.5">
         {label && (
           <label htmlFor={selectId} className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-            {label}
+            {label} {props.required && <span className="text-red-500">*</span>}
           </label>
         )}
         <select

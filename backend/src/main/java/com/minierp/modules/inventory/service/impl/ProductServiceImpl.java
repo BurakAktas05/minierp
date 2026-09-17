@@ -68,7 +68,7 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional(readOnly = true)
     public List<ProductResponse> getAllProducts() {
-        return productMapper.toResponseList(productRepository.findAll());
+        return productMapper.toResponseList(productRepository.findAllWithVariants());
     }
 
     @Override

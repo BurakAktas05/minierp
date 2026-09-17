@@ -16,4 +16,8 @@ public interface BusinessPartnerRepository extends JpaRepository<BusinessPartner
     Optional<BusinessPartner> findByTaxNumber(String taxNumber);
 
     boolean existsByTaxNumber(String taxNumber);
+
+    Optional<BusinessPartner> findByCode(String code);
+
+    boolean existsByCode(String code);
 }

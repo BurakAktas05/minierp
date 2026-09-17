@@ -2,6 +2,7 @@ package com.minierp.modules.waybill.service.impl;
 
 import com.minierp.core.common.exception.BusinessException;
 import com.minierp.core.common.exception.ResourceNotFoundException;
+import com.minierp.core.common.service.DocumentNumberService;
 import com.minierp.core.multitenancy.TenantContext;
 import com.minierp.modules.inventory.entity.ProductVariant;
 import com.minierp.modules.inventory.repository.ProductVariantRepository;
@@ -46,6 +47,7 @@ public class WaybillServiceImpl implements WaybillService {
     private final OrderRepository orderRepository;
     private final WaybillMapper waybillMapper;
     private final WaybillEventPublisher waybillEventPublisher;
+    private final DocumentNumberService documentNumberService;
 
     @Override
     @Transactional
@@ -53,8 +55,8 @@ public class WaybillServiceImpl implements WaybillService {
         BusinessPartner partner = businessPartnerRepository.findById(request.getPartnerId())
                 .orElseThrow(() -> new ResourceNotFoundException("Cari Hesap", "id", request.getPartnerId()));
 
-        String prefix = request.getType() == WaybillType.DISPATCH ? "IRS-SVK-" : "IRS-ALS-";
-        String waybillNumber = prefix + System.currentTimeMillis() + "-" + UUID.randomUUID().toString().substring(0, 4).toUpperCase();
+        String prefix = request.getType() == WaybillType.DISPATCH ? "IRS-SVK" : "IRS-ALS";
+        String waybillNumber = documentNumberService.generateNumber("WAYBILL", prefix);
 
         Waybill waybill = Waybill.builder()
                 .waybillNumber(waybillNumber)
@@ -75,11 +77,17 @@ public class WaybillServiceImpl implements WaybillService {
             ProductVariant variant = productVariantRepository.findById(itemReq.getVariantId())
                     .orElseThrow(() -> new ResourceNotFoundException("Ürün Varyantı", "id", itemReq.getVariantId()));
 
+            String lotNum = itemReq.getLotNumber();
+            if (lotNum == null || lotNum.isBlank()) {
+                lotNum = "LOT-" + OffsetDateTime.now().getYear() + "-" + String.format("%04d", (variant.getId() * 19 + 101) % 900 + 100);
+            }
+
             WaybillItem item = WaybillItem.builder()
                     .variant(variant)
                     .description(itemReq.getDescription() != null ? itemReq.getDescription() : variant.getVariantName())
                     .quantity(itemReq.getQuantity())
                     .unitPrice(itemReq.getUnitPrice() != null ? itemReq.getUnitPrice() : BigDecimal.ZERO)
+                    .lotNumber(lotNum)
                     .build();
 
             waybill.addItem(item);
@@ -105,8 +113,8 @@ public class WaybillServiceImpl implements WaybillService {
         }
 
         WaybillType waybillType = order.getOrderType() == OrderType.SALES_ORDER ? WaybillType.DISPATCH : WaybillType.RECEIPT;
-        String prefix = waybillType == WaybillType.DISPATCH ? "IRS-SVK-" : "IRS-ALS-";
-        String waybillNumber = prefix + System.currentTimeMillis() + "-" + UUID.randomUUID().toString().substring(0, 4).toUpperCase();
+        String prefix = waybillType == WaybillType.DISPATCH ? "IRS-SVK" : "IRS-ALS";
+        String waybillNumber = documentNumberService.generateNumber("WAYBILL", prefix);
 
         Waybill waybill = Waybill.builder()
                 .waybillNumber(waybillNumber)
@@ -120,14 +128,27 @@ public class WaybillServiceImpl implements WaybillService {
                 .metadata(order.getMetadata())
                 .build();
 
+        boolean hasDeliverableItems = false;
         for (OrderItem oItem : order.getItems()) {
-            WaybillItem item = WaybillItem.builder()
-                    .variant(oItem.getVariant())
-                    .description(oItem.getDescription())
-                    .quantity(oItem.getQuantity())
-                    .unitPrice(oItem.getUnitPrice())
-                    .build();
-            waybill.addItem(item);
+            int delivered = oItem.getDeliveredQuantity() != null ? oItem.getDeliveredQuantity() : 0;
+            int remaining = oItem.getQuantity() - delivered;
+            if (remaining > 0) {
+                hasDeliverableItems = true;
+                String lotNum = "LOT-" + OffsetDateTime.now().getYear() + "-" + String.format("%04d", (oItem.getVariant().getId() * 17 + 101) % 900 + 100);
+                WaybillItem item = WaybillItem.builder()
+                        .variant(oItem.getVariant())
+                        .orderItemId(oItem.getId())
+                        .description(oItem.getDescription())
+                        .quantity(remaining)
+                        .unitPrice(oItem.getUnitPrice())
+                        .lotNumber(lotNum)
+                        .build();
+                waybill.addItem(item);
+            }
+        }
+
+        if (!hasDeliverableItems) {
+            throw new BusinessException("Bu siparişin tüm kalemleri zaten sevk edilmiştir!");
         }
 
         Waybill saved = waybillRepository.save(waybill);
@@ -165,8 +186,12 @@ public class WaybillServiceImpl implements WaybillService {
             return waybillMapper.toResponse(waybill);
         }
 
-        if (oldStatus == WaybillStatus.DELIVERED || oldStatus == WaybillStatus.CANCELLED) {
-            throw new BusinessException("Teslim edilmiş veya iptal edilmiş bir irsaliyenin durumu değiştirilemez!");
+        if (oldStatus == WaybillStatus.DELIVERED) {
+            throw new BusinessException("Teslim edilmiş bir irsaliyenin durumu değiştirilemez!");
+        }
+
+        if (oldStatus == WaybillStatus.CANCELLED) {
+            throw new BusinessException("Zaten iptal edilmiş bir irsaliyenin durumu değiştirilemez!");
         }
 
         waybill.setStatus(newStatus);
@@ -174,7 +199,7 @@ public class WaybillServiceImpl implements WaybillService {
         log.info("İrsaliye durumu güncellendi: No={}, Eski Durum={}, Yeni Durum={}",
                 updated.getWaybillNumber(), oldStatus, newStatus);
 
-        // İrsaliye SEVK EDİLDİĞİNDE (DISPATCHED): RabbitMQ ile fiziki stok çıkışını/girişini tetikle!
+        // 1. İrsaliye SEVK EDİLDİĞİNDE (DISPATCHED): RabbitMQ ile fiziki stok çıkışını/girişini tetikle!
         if (newStatus == WaybillStatus.DISPATCHED) {
             List<WaybillItemEventPayload> itemPayloads = updated.getItems().stream()
                     .map(item -> WaybillItemEventPayload.builder()
@@ -182,6 +207,7 @@ public class WaybillServiceImpl implements WaybillService {
                             .sku(item.getVariant().getSku())
                             .quantity(item.getQuantity())
                             .unitPrice(item.getUnitPrice())
+                            .lotNumber(item.getLotNumber())
                             .build())
                     .toList();
 
@@ -191,10 +217,85 @@ public class WaybillServiceImpl implements WaybillService {
                     .waybillNumber(updated.getWaybillNumber())
                     .type(updated.getType())
                     .orderId(updated.getOrderId())
+                    .sourceWarehouseId(updated.getSourceWarehouse() != null ? updated.getSourceWarehouse().getId() : null)
+                    .targetWarehouseId(updated.getTargetWarehouse() != null ? updated.getTargetWarehouse().getId() : null)
                     .items(itemPayloads)
                     .build();
 
             waybillEventPublisher.publishWaybillDispatched(event);
+
+            // Bağlı siparişin teslimat adetlerini güncelle (Kısmi Sevkiyat)
+            if (updated.getOrderId() != null) {
+                orderRepository.findByIdWithDetails(updated.getOrderId()).ifPresent(order -> {
+                    boolean allDelivered = true;
+                    for (OrderItem oItem : order.getItems()) {
+                        int dispatchedQty = updated.getItems().stream()
+                                .filter(wi -> (wi.getOrderItemId() != null && wi.getOrderItemId().equals(oItem.getId()))
+                                        || (wi.getVariant() != null && wi.getVariant().getId().equals(oItem.getVariant().getId())))
+                                .mapToInt(WaybillItem::getQuantity)
+                                .sum();
+
+                        int currentDelivered = oItem.getDeliveredQuantity() != null ? oItem.getDeliveredQuantity() : 0;
+                        oItem.setDeliveredQuantity(currentDelivered + dispatchedQty);
+
+                        if (oItem.getDeliveredQuantity() < oItem.getQuantity()) {
+                            allDelivered = false;
+                        }
+                    }
+
+                    if (allDelivered) {
+                        order.setStatus(OrderStatus.COMPLETED);
+                        log.info("Siparişin tüm kalemleri sevk edildi, sipariş COMPLETED yapıldı: No={}", order.getOrderNumber());
+                    } else {
+                        log.info("Sipariş kısmi sevk edildi (kalan miktar var), sipariş CONFIRMED olarak açık kaldı: No={}", order.getOrderNumber());
+                    }
+                    orderRepository.save(order);
+                });
+            }
+        }
+        // 2. Sevk edilmiş bir irsaliye İPTAL EDİLDİĞİNDE (CANCELLED): Malları depoya iade et ve siparişi geri aç!
+        else if (newStatus == WaybillStatus.CANCELLED && oldStatus == WaybillStatus.DISPATCHED) {
+            List<WaybillItemEventPayload> itemPayloads = updated.getItems().stream()
+                    .map(item -> WaybillItemEventPayload.builder()
+                            .variantId(item.getVariant().getId())
+                            .sku(item.getVariant().getSku())
+                            .quantity(item.getQuantity())
+                            .unitPrice(item.getUnitPrice())
+                            .build())
+                    .toList();
+
+            com.minierp.modules.waybill.event.WaybillCancelledEvent cancelEvent = com.minierp.modules.waybill.event.WaybillCancelledEvent.builder()
+                    .tenantId(TenantContext.getTenantId())
+                    .waybillId(updated.getId())
+                    .waybillNumber(updated.getWaybillNumber())
+                    .type(updated.getType())
+                    .orderId(updated.getOrderId())
+                    .sourceWarehouseId(updated.getSourceWarehouse() != null ? updated.getSourceWarehouse().getId() : null)
+                    .targetWarehouseId(updated.getTargetWarehouse() != null ? updated.getTargetWarehouse().getId() : null)
+                    .items(itemPayloads)
+                    .build();
+
+            waybillEventPublisher.publishWaybillCancelled(cancelEvent);
+
+            // Bağlı siparişin teslimat adetlerini geri düşür
+            if (updated.getOrderId() != null) {
+                orderRepository.findByIdWithDetails(updated.getOrderId()).ifPresent(order -> {
+                    for (OrderItem oItem : order.getItems()) {
+                        int returnedQty = updated.getItems().stream()
+                                .filter(wi -> (wi.getOrderItemId() != null && wi.getOrderItemId().equals(oItem.getId()))
+                                        || (wi.getVariant() != null && wi.getVariant().getId().equals(oItem.getVariant().getId())))
+                                .mapToInt(WaybillItem::getQuantity)
+                                .sum();
+                        int currentDelivered = oItem.getDeliveredQuantity() != null ? oItem.getDeliveredQuantity() : 0;
+                        oItem.setDeliveredQuantity(Math.max(0, currentDelivered - returnedQty));
+                    }
+                    if (order.getStatus() == OrderStatus.COMPLETED) {
+                        order.setStatus(OrderStatus.CONFIRMED);
+                    }
+                    orderRepository.save(order);
+                    log.info("İrsaliye iptali sonrası bağlı sipariş teslimat adetleri geri alındı: No={}", order.getOrderNumber());
+                });
+            }
         }
 
         return waybillMapper.toResponse(updated);

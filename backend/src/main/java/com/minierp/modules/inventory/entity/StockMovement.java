@@ -48,6 +48,9 @@ public class StockMovement extends BaseEntity {
     @Column(columnDefinition = "TEXT")
     private String notes;
 
+    @Column(name = "lot_number", length = 50)
+    private String lotNumber;
+
     @Builder.Default
     @Column(name = "performed_by", nullable = false, length = 50)
     private String performedBy = "SYSTEM";

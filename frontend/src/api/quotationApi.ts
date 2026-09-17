@@ -1,36 +1,29 @@
-import { apiClient, apiRequest, mockStore } from './client';
-import { Quotation, QuotationStatus, QuotationType, CreateQuotationRequest } from '../types';
+import { apiClient } from './client';
+import { Quotation, QuotationStatus, QuotationType } from '../types';
 
 export const quotationApi = {
   getQuotations: async (type?: QuotationType): Promise<Quotation[]> => {
-    return apiRequest(
-      () => apiClient.get<Quotation[]>('/quotations', { params: { type } }),
-      () => mockStore.getQuotations(type)
-    );
+    const res = await apiClient.get<Quotation[]>('/quotations', { params: { type } });
+    return Array.isArray(res.data) ? res.data : [];
   },
 
   getQuotationById: async (id: number): Promise<Quotation> => {
-    return apiRequest(
-      () => apiClient.get<Quotation>(`/quotations/${id}`),
-      () => {
-        const q = mockStore.getQuotations().find((item) => item.id === id);
-        if (!q) throw new Error('Teklif bulunamadı');
-        return q;
-      }
-    );
+    const res = await apiClient.get<Quotation>(`/quotations/${id}`);
+    return res.data;
   },
 
-  createQuotation: async (data: CreateQuotationRequest): Promise<Quotation> => {
-    return apiRequest(
-      () => apiClient.post<Quotation>('/quotations', data),
-      () => mockStore.addQuotation(data)
-    );
+  createQuotation: async (data: any): Promise<Quotation> => {
+    const res = await apiClient.post<Quotation>('/quotations', data);
+    return res.data;
+  },
+
+  updateQuotation: async (id: number, data: any): Promise<Quotation> => {
+    const res = await apiClient.put<Quotation>(`/quotations/${id}`, data);
+    return res.data;
   },
 
   updateStatus: async (id: number, status: QuotationStatus): Promise<Quotation> => {
-    return apiRequest(
-      () => apiClient.patch<Quotation>(`/quotations/${id}/status`, null, { params: { status } }),
-      () => mockStore.updateQuotationStatus(id, status)
-    );
+    const res = await apiClient.patch<Quotation>(`/quotations/${id}/status`, null, { params: { status } });
+    return res.data;
   },
 };

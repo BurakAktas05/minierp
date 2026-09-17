@@ -19,6 +19,7 @@ public class OrderItemResponse {
     private String sku;
     private String description;
     private Integer quantity;
+    private Integer deliveredQuantity;
     private BigDecimal unitPrice;
     private BigDecimal taxRate;
     private BigDecimal discountRate;

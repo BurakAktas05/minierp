@@ -2,6 +2,7 @@ package com.minierp.modules.quotation.service.impl;
 
 import com.minierp.core.common.exception.BusinessException;
 import com.minierp.core.common.exception.ResourceNotFoundException;
+import com.minierp.core.common.service.DocumentNumberService;
 import com.minierp.modules.inventory.entity.ProductVariant;
 import com.minierp.modules.inventory.repository.ProductVariantRepository;
 import com.minierp.modules.partner.entity.BusinessPartner;
@@ -25,7 +26,6 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.OffsetDateTime;
 import java.util.List;
-import java.util.UUID;
 
 @Slf4j
 @Service
@@ -36,6 +36,7 @@ public class QuotationServiceImpl implements QuotationService {
     private final BusinessPartnerRepository businessPartnerRepository;
     private final ProductVariantRepository productVariantRepository;
     private final QuotationMapper quotationMapper;
+    private final DocumentNumberService documentNumberService;
 
     @Override
     @Transactional
@@ -43,8 +44,8 @@ public class QuotationServiceImpl implements QuotationService {
         BusinessPartner partner = businessPartnerRepository.findById(request.getPartnerId())
                 .orElseThrow(() -> new ResourceNotFoundException("Cari Hesap", "id", request.getPartnerId()));
 
-        String prefix = request.getType() == QuotationType.SALES ? "TEK-SAT-" : "TEK-ALS-";
-        String quotationNumber = prefix + System.currentTimeMillis() + "-" + UUID.randomUUID().toString().substring(0, 4).toUpperCase();
+        String prefix = request.getType() == QuotationType.SALES ? "TEK-SAT" : "TEK-ALS";
+        String quotationNumber = documentNumberService.generateNumber("QUOTATION", prefix);
 
         Quotation quotation = Quotation.builder()
                 .quotationNumber(quotationNumber)
@@ -58,11 +59,94 @@ public class QuotationServiceImpl implements QuotationService {
                 .metadata(request.getMetadata())
                 .build();
 
+        calculateAndSetItems(quotation, request.getItems());
+
+        Quotation saved = quotationRepository.save(quotation);
+        log.info("Yeni B2B Teklif oluşturuldu: No={}, Tür={}, Cari={}, Tutar={}",
+                saved.getQuotationNumber(), saved.getType(), partner.getName(), saved.getTotalAmount());
+
+        return quotationMapper.toResponse(saved);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<QuotationResponse> getAllQuotations(QuotationType type) {
+        List<Quotation> quotations = (type != null)
+                ? quotationRepository.findByType(type)
+                : quotationRepository.findAll();
+        return quotationMapper.toResponseList(quotations);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public QuotationResponse getQuotationById(Long id) {
+        Quotation quotation = quotationRepository.findByIdWithDetails(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Teklif", "id", id));
+        return quotationMapper.toResponse(quotation);
+    }
+
+    @Override
+    @Transactional
+    public QuotationResponse updateQuotation(Long id, CreateQuotationRequest request) {
+        Quotation quotation = quotationRepository.findByIdWithDetails(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Teklif", "id", id));
+
+        if (quotation.getStatus() != QuotationStatus.DRAFT && quotation.getStatus() != QuotationStatus.SENT) {
+            throw new BusinessException("Sadece DRAFT veya SENT durumundaki teklifler güncellenebilir! Mevcut Durum: " + quotation.getStatus());
+        }
+
+        // Temel alanları güncelle
+        if (request.getValidUntil() != null) quotation.setValidUntil(request.getValidUntil());
+        if (request.getCurrency() != null) quotation.setCurrency(request.getCurrency());
+        if (request.getNotes() != null) quotation.setNotes(request.getNotes());
+        if (request.getMetadata() != null) quotation.setMetadata(request.getMetadata());
+
+        // Kalemleri güncelle
+        if (request.getItems() != null && !request.getItems().isEmpty()) {
+            quotation.getItems().clear();
+            calculateAndSetItems(quotation, request.getItems());
+        }
+
+        Quotation updated = quotationRepository.save(quotation);
+        log.info("Teklif güncellendi: No={}, Yeni Toplam={}", updated.getQuotationNumber(), updated.getTotalAmount());
+
+        return quotationMapper.toResponse(updated);
+    }
+
+    @Override
+    @Transactional
+    public QuotationResponse updateQuotationStatus(Long id, QuotationStatus newStatus) {
+        Quotation quotation = quotationRepository.findByIdWithDetails(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Teklif", "id", id));
+
+        QuotationStatus oldStatus = quotation.getStatus();
+
+        if (oldStatus == newStatus) {
+            return quotationMapper.toResponse(quotation);
+        }
+
+        if (oldStatus == QuotationStatus.REJECTED || oldStatus == QuotationStatus.EXPIRED || oldStatus == QuotationStatus.CONVERTED) {
+            throw new BusinessException("Kapanmış veya siparişe dönüştürülmüş teklif durumu değiştirilemez!");
+        }
+
+        quotation.setStatus(newStatus);
+        Quotation updated = quotationRepository.save(quotation);
+        log.info("Teklif durumu güncellendi: No={}, Eski Durum={}, Yeni Durum={}",
+                updated.getQuotationNumber(), oldStatus, newStatus);
+
+        return quotationMapper.toResponse(updated);
+    }
+
+    /**
+     * Teklif kalemlerini hesapla ve teklif nesnesine set et.
+     * Ortak hesaplama mantığı hem create hem update için kullanılır.
+     */
+    private void calculateAndSetItems(Quotation quotation, List<QuotationItemRequest> itemRequests) {
         BigDecimal subtotalSum = BigDecimal.ZERO;
         BigDecimal taxSum = BigDecimal.ZERO;
         BigDecimal discountSum = BigDecimal.ZERO;
 
-        for (QuotationItemRequest itemReq : request.getItems()) {
+        for (QuotationItemRequest itemReq : itemRequests) {
             ProductVariant variant = productVariantRepository.findById(itemReq.getVariantId())
                     .orElseThrow(() -> new ResourceNotFoundException("Ürün Varyantı", "id", itemReq.getVariantId()));
 
@@ -100,52 +184,5 @@ public class QuotationServiceImpl implements QuotationService {
         quotation.setDiscountAmount(discountSum);
         quotation.setTaxAmount(taxSum);
         quotation.setTotalAmount(subtotalSum.subtract(discountSum).add(taxSum));
-
-        Quotation saved = quotationRepository.save(quotation);
-        log.info("Yeni B2B Teklif oluşturuldu: No={}, Tür={}, Cari={}, Tutar={}",
-                saved.getQuotationNumber(), saved.getType(), partner.getName(), saved.getTotalAmount());
-
-        return quotationMapper.toResponse(saved);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<QuotationResponse> getAllQuotations(QuotationType type) {
-        List<Quotation> quotations = (type != null)
-                ? quotationRepository.findByType(type)
-                : quotationRepository.findAll();
-        return quotationMapper.toResponseList(quotations);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public QuotationResponse getQuotationById(Long id) {
-        Quotation quotation = quotationRepository.findByIdWithDetails(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Teklif", "id", id));
-        return quotationMapper.toResponse(quotation);
-    }
-
-    @Override
-    @Transactional
-    public QuotationResponse updateQuotationStatus(Long id, QuotationStatus newStatus) {
-        Quotation quotation = quotationRepository.findByIdWithDetails(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Teklif", "id", id));
-
-        QuotationStatus oldStatus = quotation.getStatus();
-
-        if (oldStatus == newStatus) {
-            return quotationMapper.toResponse(quotation);
-        }
-
-        if (oldStatus == QuotationStatus.REJECTED || oldStatus == QuotationStatus.EXPIRED || oldStatus == QuotationStatus.CONVERTED) {
-            throw new BusinessException("Kapanmış veya siparişe dönüştürülmüş teklif durumu değiştirilemez!");
-        }
-
-        quotation.setStatus(newStatus);
-        Quotation updated = quotationRepository.save(quotation);
-        log.info("Teklif durumu güncellendi: No={}, Eski Durum={}, Yeni Durum={}",
-                updated.getQuotationNumber(), oldStatus, newStatus);
-
-        return quotationMapper.toResponse(updated);
     }
 }

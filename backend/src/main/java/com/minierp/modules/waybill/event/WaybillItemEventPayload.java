@@ -18,4 +18,5 @@ public class WaybillItemEventPayload implements Serializable {
     private String sku;
     private Integer quantity;
     private BigDecimal unitPrice;
+    private String lotNumber;
 }

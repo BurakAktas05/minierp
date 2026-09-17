@@ -65,6 +65,30 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error("Kimlik doğrulama başarısız: " + ex.getMessage()));
     }
 
+    @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
+    public ResponseEntity<ApiResponse<Void>> handleNoResourceFound(org.springframework.web.servlet.resource.NoResourceFoundException ex) {
+        log.warn("Kaynak bulunamadı (404): {}", ex.getResourcePath());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.error("İstenen kaynak bulunamadı: " + ex.getResourcePath()));
+    }
+
+    @ExceptionHandler({
+            org.springframework.dao.OptimisticLockingFailureException.class,
+            org.hibernate.StaleObjectStateException.class
+    })
+    public ResponseEntity<ApiResponse<Void>> handleOptimisticLock(Exception ex) {
+        log.warn("Eşzamanlı kayıt çakışması (Optimistic Lock): {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error("Bu kayıt başka bir kullanıcı tarafından güncellenmiş. Lütfen sayfayı yenileyip tekrar deneyiniz."));
+    }
+
+    @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleDataIntegrity(org.springframework.dao.DataIntegrityViolationException ex) {
+        log.warn("Veritabanı kısıt ihlali: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error("Veritabanı kısıt ihlali (Örn: mükerrer kod veya bağlı ilişkili kayıt mevcuttur)."));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGeneralException(Exception ex) {
         log.error("Beklenmeyen sistem hatası: ", ex);

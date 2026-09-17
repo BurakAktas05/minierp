@@ -22,5 +22,7 @@ public class WaybillDispatchedEvent extends BaseEvent {
     private String waybillNumber;
     private WaybillType type;
     private Long orderId;
+    private Long sourceWarehouseId;
+    private Long targetWarehouseId;
     private List<WaybillItemEventPayload> items;
 }

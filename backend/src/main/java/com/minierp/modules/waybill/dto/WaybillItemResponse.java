@@ -20,4 +20,5 @@ public class WaybillItemResponse {
     private String description;
     private Integer quantity;
     private BigDecimal unitPrice;
+    private String lotNumber;
 }

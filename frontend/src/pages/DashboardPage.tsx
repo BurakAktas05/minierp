@@ -1,332 +1,626 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Package,
-  Layers,
-  FileSpreadsheet,
   ShoppingCart,
+  Truck,
+  Building2,
+  FileText,
+  FileSpreadsheet,
   AlertTriangle,
   ArrowRight,
-  Plus,
-  Truck,
-  TrendingUp,
-  Building2,
+  RefreshCw,
+  Wallet,
+  Factory,
+  CheckCircle2,
+  Clock,
+  Layers,
 } from 'lucide-react';
-import { StatCard } from '../components/common/StatCard';
-import { StatusBadge } from '../components/common/StatusBadge';
-import { Button } from '../components/ui/button';
-import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card';
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '../components/ui/table';
 import { inventoryApi } from '../api/inventoryApi';
 import { quotationApi } from '../api/quotationApi';
 import { orderApi } from '../api/orderApi';
 import { partnerApi } from '../api/partnerApi';
-import { Product, Quotation, Order, BusinessPartner } from '../types';
+import { invoiceApi } from '../api/invoiceApi';
+import { waybillApi } from '../api/waybillApi';
+import { treasuryApi } from '../api/treasuryApi';
+import { manufacturingApi } from '../api/manufacturingApi';
+import {
+  Product,
+  Quotation,
+  Order,
+  BusinessPartner,
+  Invoice,
+  Waybill,
+  TreasuryAccount,
+  WorkOrder,
+} from '../types';
+import { StatusBadge } from '../components/common/StatusBadge';
+import { Button } from '../components/ui/button';
+
+const formatCurrency = (amount: number = 0, currency = 'TRY') => {
+  return new Intl.NumberFormat('tr-TR', { style: 'currency', currency }).format(amount);
+};
+
+const formatDate = (dateStr?: string) => {
+  if (!dateStr) return '-';
+  try {
+    return new Date(dateStr).toLocaleDateString('tr-TR', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+  } catch {
+    return dateStr;
+  }
+};
 
 export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
+
+  // Canlı Veritabanı Varlıkları
   const [products, setProducts] = useState<Product[]>([]);
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [partners, setPartners] = useState<BusinessPartner[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [waybills, setWaybills] = useState<Waybill[]>([]);
+  const [treasuryAccounts, setTreasuryAccounts] = useState<TreasuryAccount[]>([]);
+  const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const fetchLiveDatabaseData = async () => {
+    setLoading(true);
+    try {
+      const [
+        prodList,
+        quotList,
+        ordList,
+        partList,
+        invList,
+        waybList,
+        treasList,
+        mfgList,
+      ] = await Promise.all([
+        inventoryApi.getProducts().catch(() => []),
+        quotationApi.getQuotations().catch(() => []),
+        orderApi.getOrders().catch(() => []),
+        partnerApi.getPartners().catch(() => []),
+        invoiceApi.getInvoices().catch(() => []),
+        waybillApi.getWaybills().catch(() => []),
+        treasuryApi.getAllAccounts().catch(() => []),
+        manufacturingApi.getWorkOrders().catch(() => []),
+      ]);
+
+      setProducts(prodList);
+      setQuotations(quotList);
+      setOrders(ordList);
+      setPartners(partList);
+      setInvoices(invList);
+      setWaybills(waybList);
+      setTreasuryAccounts(treasList);
+      setWorkOrders(mfgList);
+    } catch (err) {
+      console.error('Veritabanı metrikleri alınırken hata:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [prodList, quotList, ordList, partList] = await Promise.all([
-          inventoryApi.getProducts(),
-          quotationApi.getQuotations(),
-          orderApi.getOrders(),
-          partnerApi.getPartners(),
-        ]);
-        setProducts(prodList);
-        setQuotations(quotList);
-        setOrders(ordList);
-        setPartners(partList);
-      } catch (err) {
-        console.error('Dashboard veri yükleme hatası:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
+    fetchLiveDatabaseData();
   }, []);
 
-  // Compute metrics
-  const totalVariants = products.reduce((sum, p) => sum + p.variants.length, 0);
-  const totalStockQuantity = products.reduce(
-    (sum, p) => sum + p.variants.reduce((vSum, v) => vSum + v.stockQuantity, 0),
-    0
-  );
-  const totalReservedStock = products.reduce(
-    (sum, p) => sum + p.variants.reduce((vSum, v) => vSum + v.reservedStock, 0),
-    0
-  );
+  // ==========================================
+  // %100 GERÇEK VERİTABANI METRİKLERİ
+  // ==========================================
 
-  // Critical / Low stock variants (availableStock <= 15 or high reserved ratio)
-  const criticalVariants: Array<{
-    productName: string;
-    sku: string;
-    size?: string;
-    color?: string;
-    stock: number;
-    reserved: number;
-    available: number;
-  }> = [];
+  // 1. Stok Metrikleri
+  const stockMetrics = useMemo(() => {
+    let physical = 0;
+    let reserved = 0;
+    let totalValuation = 0;
+    const criticalVariants: Array<{
+      id: number;
+      sku: string;
+      name: string;
+      productCode: string;
+      physical: number;
+      reserved: number;
+      available: number;
+    }> = [];
 
-  products.forEach((p) => {
-    p.variants.forEach((v) => {
-      if (v.availableStock <= 15 || v.reservedStock > 0) {
-        criticalVariants.push({
-          productName: p.name,
-          sku: v.sku,
-          size: v.size,
-          color: v.color,
-          stock: v.stockQuantity,
-          reserved: v.reservedStock,
-          available: v.availableStock,
-        });
-      }
+    products.forEach((p) => {
+      (p.variants || []).forEach((v) => {
+        const pQty = v.stockQuantity || 0;
+        const rQty = v.reservedStock || 0;
+        const aQty = pQty - rQty;
+
+        physical += pQty;
+        reserved += rQty;
+        totalValuation += pQty * Number(v.salePrice || p.basePrice || 0);
+
+        if (aQty <= 15) {
+          criticalVariants.push({
+            id: v.id,
+            sku: v.sku,
+            name: v.variantName || v.sku,
+            productCode: p.code,
+            physical: pQty,
+            reserved: rQty,
+            available: aQty,
+          });
+        }
+      });
     });
-  });
+
+    return {
+      totalSkuCount: products.reduce((sum, p) => sum + (p.variants?.length || 0), 0),
+      totalProducts: products.length,
+      physical,
+      reserved,
+      available: physical - reserved,
+      totalValuation,
+      criticalVariants: criticalVariants.sort((a, b) => a.available - b.available),
+    };
+  }, [products]);
+
+  // 2. Finans & Hazine Metrikleri
+  const financialMetrics = useMemo(() => {
+    // Toplam Kesilen Fatura Tutarı (DRAFT hariç)
+    const officialInvoices = invoices.filter((i) => i.status !== 'DRAFT' && i.status !== 'CANCELLED');
+    const totalInvoiced = officialInvoices.reduce((sum, i) => sum + Number(i.totalAmount || 0), 0);
+    const totalRemaining = officialInvoices.reduce((sum, i) => sum + Number(i.remainingAmount || 0), 0);
+    const totalCollected = totalInvoiced - totalRemaining;
+
+    // Kasa ve Banka Toplam Mevduatı
+    const treasuryBalance = treasuryAccounts.reduce(
+      (sum, acc) => sum + Number(acc.currentBalance || 0),
+      0
+    );
+
+    // Cari Borç/Alacak Bakiyeleri
+    const totalPartnerDebt = partners.reduce((sum, p) => sum + Number(p.totalDebit || 0), 0);
+    const totalPartnerCredit = partners.reduce((sum, p) => sum + Number(p.totalCredit || 0), 0);
+
+    return {
+      totalInvoiced,
+      totalRemaining,
+      totalCollected,
+      treasuryBalance,
+      totalPartnerDebt,
+      totalPartnerCredit,
+      activeInvoiceCount: officialInvoices.length,
+      unpaidInvoiceCount: officialInvoices.filter((i) => (i.remainingAmount || 0) > 0).length,
+    };
+  }, [invoices, treasuryAccounts, partners]);
+
+  // 3. Sipariş & Operasyon Metrikleri
+  const operationMetrics = useMemo(() => {
+    const confirmedOrders = orders.filter((o) => o.status === 'CONFIRMED');
+    const draftOrders = orders.filter((o) => o.status === 'DRAFT');
+    const completedOrders = orders.filter((o) => o.status === 'COMPLETED');
+
+    const confirmedAmount = confirmedOrders.reduce((sum, o) => sum + Number(o.totalAmount || 0), 0);
+    const pendingWaybills = waybills.filter((w) => w.status === 'DRAFT');
+    const dispatchedWaybills = waybills.filter((w) => w.status === 'DISPATCHED');
+    const pendingQuotes = quotations.filter((q) => q.status === 'SENT' || q.status === 'DRAFT');
+    const activeWorkOrders = workOrders.filter((wo) => wo.status === 'IN_PROGRESS' || wo.status === 'PLANNED');
+
+    return {
+      totalOrders: orders.length,
+      confirmedCount: confirmedOrders.length,
+      draftCount: draftOrders.length,
+      completedCount: completedOrders.length,
+      confirmedAmount,
+      pendingWaybillCount: pendingWaybills.length,
+      dispatchedWaybillCount: dispatchedWaybills.length,
+      pendingQuoteCount: pendingQuotes.length,
+      activeWorkOrderCount: activeWorkOrders.length,
+    };
+  }, [orders, waybills, quotations, workOrders]);
 
   return (
-    <div className="space-y-6">
-      {/* Top Header & Quick Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200">
+    <div className="space-y-4 select-none pb-8">
+      {/* 1. KURUMSAL ERP BAŞLIK VE HIZLI MENÜ */}
+      <div className="bg-slate-900 text-white p-4 rounded-t-sm border border-slate-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">Genel Bakış & KPI Raporu</h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Gerçek zamanlı stok rezervasyonları, cari teklifler ve sipariş akış paneli
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 bg-blue-500 rounded-xs"></span>
+            <h1 className="text-sm font-bold tracking-wide uppercase">
+              Kurumsal Operasyon & Finans Kontrol Kokpiti
+            </h1>
+            <span className="text-[10px] bg-slate-800 text-slate-300 font-mono px-2 py-0.5 rounded border border-slate-700">
+              Canlı DB
+            </span>
+          </div>
+          <p className="text-xs text-slate-400 mt-1 font-sans">
+            PostgreSQL şemasından anlık çekilen fiili stok, rezerve pozisyonu, cari borç/alacak ve açık sipariş dengesi.
           </p>
         </div>
+
         <div className="flex items-center gap-2 flex-wrap">
           <Button
-            variant="outline"
             size="sm"
-            onClick={() => navigate('/quotations')}
+            variant="outline"
+            onClick={fetchLiveDatabaseData}
+            title="Veritabanını Yenile (F5)"
+            disabled={loading}
+            className="h-7 px-2.5 text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700"
           >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Yeni Teklif</span>
+            <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${loading ? 'animate-spin' : ''}`} />
+            <span>Yenile</span>
           </Button>
           <Button
-            variant="outline"
             size="sm"
+            variant="outline"
             onClick={() => navigate('/orders')}
+            className="h-7 px-2.5 text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700"
           >
-            <ShoppingCart className="w-3.5 h-3.5" />
+            <ShoppingCart className="w-3.5 h-3.5 mr-1.5 text-blue-400" />
             <span>Siparişler</span>
           </Button>
           <Button
-            variant="primary"
             size="sm"
-            onClick={() => navigate('/inventory')}
+            variant="outline"
+            onClick={() => navigate('/invoices')}
+            className="h-7 px-2.5 text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700"
           >
-            <Package className="w-3.5 h-3.5" />
-            <span>Stok / Ürün Girişi</span>
+            <FileText className="w-3.5 h-3.5 mr-1.5 text-emerald-400" />
+            <span>Faturalar</span>
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => navigate('/inventory')}
+            className="h-7 px-2.5 text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700"
+          >
+            <Package className="w-3.5 h-3.5 mr-1.5 text-amber-400" />
+            <span>Stok Yönetimi</span>
           </Button>
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          title="Toplam Stok SKU"
-          value={totalVariants}
-          subtitle={`Toplam ${totalStockQuantity} adet fiili ürün`}
-          icon={Package}
+      {/* 2. ANA KURUMSAL KPI METRİK IZGARASI (CİDDİ ERP FORMATI) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        {/* KART 1: STOK POZİSYONU */}
+        <div
           onClick={() => navigate('/inventory')}
-        />
-        <StatCard
-          title="Rezerve Stok"
-          value={totalReservedStock}
-          subtitle="Siparişler için ayrıldı (RabbitMQ)"
-          change={`${totalReservedStock} Adet`}
-          isPositive={false}
-          icon={Layers}
-          onClick={() => navigate('/inventory')}
-        />
-        <StatCard
-          title="B2B Teklifler"
-          value={quotations.length}
-          subtitle={`${quotations.filter((q) => q.status === 'ACCEPTED').length} adet kabul edilmiş`}
-          icon={FileSpreadsheet}
-          onClick={() => navigate('/quotations')}
-        />
-        <StatCard
-          title="Resmi Siparişler"
-          value={orders.length}
-          subtitle={`${orders.filter((o) => o.status === 'CONFIRMED').length} adet onaylı`}
-          change={`${orders.filter((o) => o.status === 'CONFIRMED').length} Onaylı`}
-          isPositive={true}
-          icon={ShoppingCart}
+          className="bg-white border border-slate-300 rounded-sm p-3.5 shadow-2xs hover:border-slate-400 transition-colors cursor-pointer"
+        >
+          <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+            <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
+              <Package className="w-3.5 h-3.5 text-slate-700" />
+              Depo Fiili Stok
+            </span>
+            <span className="text-[11px] font-mono font-bold text-slate-900 bg-slate-100 px-1.5 py-0.2 rounded border border-slate-200">
+              {stockMetrics.totalSkuCount} SKU
+            </span>
+          </div>
+          <div className="mt-2.5 flex items-baseline justify-between">
+            <span className="font-mono text-2xl font-bold text-slate-900 tracking-tight">
+              {stockMetrics.physical.toLocaleString('tr-TR')}
+            </span>
+            <span className="text-xs font-medium text-slate-500">Birim Adet</span>
+          </div>
+          <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] font-mono">
+            <span className="text-amber-700 font-semibold">
+              Rezerve: {stockMetrics.reserved.toLocaleString('tr-TR')}
+            </span>
+            <span className="text-emerald-700 font-bold">
+              Satılabilir: {stockMetrics.available.toLocaleString('tr-TR')}
+            </span>
+          </div>
+        </div>
+
+        {/* KART 2: FİNANSAL CİRO & AÇIK BAKİYE */}
+        <div
+          onClick={() => navigate('/invoices')}
+          className="bg-white border border-slate-300 rounded-sm p-3.5 shadow-2xs hover:border-slate-400 transition-colors cursor-pointer"
+        >
+          <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+            <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
+              <FileText className="w-3.5 h-3.5 text-blue-700" />
+              Fatura Hacmi
+            </span>
+            <span className="text-[11px] font-mono font-bold text-blue-900 bg-blue-50 px-1.5 py-0.2 rounded border border-blue-200">
+              {financialMetrics.activeInvoiceCount} Belge
+            </span>
+          </div>
+          <div className="mt-2.5 flex items-baseline justify-between">
+            <span className="font-mono text-2xl font-bold text-slate-900 tracking-tight">
+              {formatCurrency(financialMetrics.totalInvoiced)}
+            </span>
+          </div>
+          <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] font-mono">
+            <span className="text-slate-500">
+              Tahsil Edilen: {formatCurrency(financialMetrics.totalCollected)}
+            </span>
+            <span className="text-rose-700 font-bold">
+              Kalan: {formatCurrency(financialMetrics.totalRemaining)}
+            </span>
+          </div>
+        </div>
+
+        {/* KART 3: HAZİNE & LİKİDİTE (KASA/BANKA) */}
+        <div
+          onClick={() => navigate('/invoices')}
+          className="bg-white border border-slate-300 rounded-sm p-3.5 shadow-2xs hover:border-slate-400 transition-colors cursor-pointer"
+        >
+          <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+            <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
+              <Wallet className="w-3.5 h-3.5 text-emerald-700" />
+              Kasa & Banka Hazine
+            </span>
+            <span className="text-[11px] font-mono font-bold text-emerald-900 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+              {treasuryAccounts.length} Hesap
+            </span>
+          </div>
+          <div className="mt-2.5 flex items-baseline justify-between">
+            <span className="font-mono text-2xl font-bold text-emerald-900 tracking-tight">
+              {formatCurrency(financialMetrics.treasuryBalance)}
+            </span>
+          </div>
+          <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] font-mono text-slate-500">
+            <span>Kasa: {treasuryAccounts.filter((a) => a.accountType === 'CASH').length}</span>
+            <span>Banka: {treasuryAccounts.filter((a) => a.accountType === 'BANK').length}</span>
+          </div>
+        </div>
+
+        {/* KART 4: SİPARİŞ & TEDARİK OPERASYONU */}
+        <div
           onClick={() => navigate('/orders')}
-        />
+          className="bg-white border border-slate-300 rounded-sm p-3.5 shadow-2xs hover:border-slate-400 transition-colors cursor-pointer"
+        >
+          <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+            <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
+              <ShoppingCart className="w-3.5 h-3.5 text-slate-800" />
+              Resmi Siparişler
+            </span>
+            <span className="text-[11px] font-mono font-bold text-indigo-900 bg-indigo-50 px-1.5 py-0.2 rounded border border-indigo-200">
+              {operationMetrics.confirmedCount} Onaylı
+            </span>
+          </div>
+          <div className="mt-2.5 flex items-baseline justify-between">
+            <span className="font-mono text-2xl font-bold text-slate-900 tracking-tight">
+              {formatCurrency(operationMetrics.confirmedAmount)}
+            </span>
+          </div>
+          <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] font-mono">
+            <span className="text-amber-700 font-medium">Taslak: {operationMetrics.draftCount}</span>
+            <span className="text-slate-600">Tamamlanan: {operationMetrics.completedCount}</span>
+          </div>
+        </div>
       </div>
 
-      {/* Grid: Critical Stock & Recent Orders */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Critical Stock Alert Table */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-3">
-            <div>
-              <CardTitle className="text-sm flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-amber-600" />
-                <span>Kritik Stok & Rezervasyon Durumu</span>
-              </CardTitle>
-              <p className="text-xs text-slate-500 mt-1">
-                Kullanılabilir adedi düşük veya rezervasyonu yüksek varyantlar
-              </p>
+      {/* 3. İKİ SÜTUNLU CANLI VERİTABANI İŞLEM MASALARI */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* SOL: EN SON DÜZENLENEN RESMİ FATURALAR (DB'DEN) */}
+        <div className="bg-white border border-slate-300 rounded-sm shadow-2xs flex flex-col">
+          <div className="p-2.5 bg-slate-100 border-b border-slate-300 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 bg-slate-700 rounded-xs"></span>
+              <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wide">
+                Son Düzenlenen Faturalar
+              </h2>
+              <span className="text-[10px] font-mono text-slate-500">
+                (Toplam {invoices.length} kayıt)
+              </span>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate('/inventory')}
-              className="text-xs"
+            <button
+              onClick={() => navigate('/invoices')}
+              className="text-[11px] font-semibold text-blue-700 hover:text-blue-900 flex items-center gap-1 cursor-pointer"
             >
-              <span>Tümünü Gör</span>
-              <ArrowRight className="w-3 h-3 ml-1" />
-            </Button>
-          </CardHeader>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Ürün & Varyant</TableHead>
-                  <TableHead>SKU</TableHead>
-                  <TableHead className="text-right">Fiili</TableHead>
-                  <TableHead className="text-right">Rezerve</TableHead>
-                  <TableHead className="text-right">Kullanılabilir</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {criticalVariants.slice(0, 5).map((item, idx) => (
-                  <TableRow key={idx}>
-                    <TableCell>
-                      <p className="font-semibold text-xs text-slate-900">{item.productName}</p>
-                      <p className="text-[11px] text-slate-500">
-                        {item.size ? `Beden: ${item.size}` : ''} {item.color ? `/ Renk: ${item.color}` : ''}
-                      </p>
-                    </TableCell>
-                    <TableCell className="font-mono text-xs">{item.sku}</TableCell>
-                    <TableCell className="text-right font-mono text-xs">{item.stock}</TableCell>
-                    <TableCell className="text-right font-mono text-xs text-amber-700 font-semibold">
-                      {item.reserved}
-                    </TableCell>
-                    <TableCell className="text-right font-mono text-xs">
-                      <span
-                        className={`inline-block px-1.5 py-0.5 rounded font-bold ${
-                          item.available <= 5
-                            ? 'bg-rose-100 text-rose-800'
-                            : 'bg-slate-100 text-slate-800'
-                        }`}
-                      >
-                        {item.available}
-                      </span>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {criticalVariants.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-6 text-xs text-slate-400">
-                      Tüm stok seviyeleri optimal durumda.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+              Tüm Faturalar <ArrowRight className="w-3 h-3" />
+            </button>
+          </div>
 
-        {/* Recent Orders Flow */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-3">
-            <div>
-              <CardTitle className="text-sm flex items-center gap-2">
-                <ShoppingCart className="w-4 h-4 text-slate-700" />
-                <span>Son Siparişler</span>
-              </CardTitle>
-              <p className="text-xs text-slate-500 mt-1">
-                En son oluşturulan B2B müşteri ve tedarik siparişleri
-              </p>
+          <div className="overflow-auto max-h-72">
+            <table className="w-full border-collapse text-xs text-left">
+              <thead className="sticky top-0 bg-slate-200 text-slate-800 border-b border-slate-300 font-semibold text-[11px]">
+                <tr>
+                  <th className="px-2.5 py-1.5 border-r border-slate-300">Fatura No</th>
+                  <th className="px-2.5 py-1.5 border-r border-slate-300">Cari Ünvan</th>
+                  <th className="px-2.5 py-1.5 text-right border-r border-slate-300">Tutar</th>
+                  <th className="px-2.5 py-1.5 text-right border-r border-slate-300">Kalan Bakiye</th>
+                  <th className="px-2 py-1.5 text-center">Durum</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200">
+                {invoices.slice(0, 7).map((inv) => (
+                  <tr
+                    key={inv.id}
+                    onClick={() => navigate('/invoices')}
+                    className="hover:bg-slate-50 cursor-pointer"
+                  >
+                    <td className="px-2.5 py-1.5 font-mono text-[11px] font-semibold text-slate-900 border-r border-slate-200 whitespace-nowrap">
+                      {inv.invoiceNumber}
+                    </td>
+                    <td className="px-2.5 py-1.5 border-r border-slate-200 truncate max-w-[150px]">
+                      <span className="font-semibold text-slate-800">
+                        {inv.partnerTitle || inv.partner?.name || `Cari #${inv.partnerId}`}
+                      </span>
+                      <span className="block text-[10px] text-slate-400 font-mono">
+                        {formatDate(inv.invoiceDate)}
+                      </span>
+                    </td>
+                    <td className="px-2.5 py-1.5 font-mono text-[11px] text-right font-semibold text-slate-900 border-r border-slate-200 whitespace-nowrap">
+                      {formatCurrency(inv.totalAmount, inv.currency)}
+                    </td>
+                    <td className="px-2.5 py-1.5 font-mono text-[11px] text-right font-bold text-rose-800 border-r border-slate-200 whitespace-nowrap">
+                      {formatCurrency(inv.remainingAmount, inv.currency)}
+                    </td>
+                    <td className="px-2 py-1.5 text-center whitespace-nowrap">
+                      <StatusBadge status={inv.status} />
+                    </td>
+                  </tr>
+                ))}
+                {invoices.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-slate-400 text-xs">
+                      Veritabanında kayıtlı fatura bulunamadı.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* SAĞ: EN SON ONAYLANAN & BEKLEYEN SİPARİŞLER (DB'DEN) */}
+        <div className="bg-white border border-slate-300 rounded-sm shadow-2xs flex flex-col">
+          <div className="p-2.5 bg-slate-100 border-b border-slate-300 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 bg-slate-700 rounded-xs"></span>
+              <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wide">
+                Son Resmi Siparişler
+              </h2>
+              <span className="text-[10px] font-mono text-slate-500">
+                (Toplam {orders.length} kayıt)
+              </span>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
+            <button
               onClick={() => navigate('/orders')}
-              className="text-xs"
+              className="text-[11px] font-semibold text-blue-700 hover:text-blue-900 flex items-center gap-1 cursor-pointer"
             >
-              <span>Siparişler</span>
-              <ArrowRight className="w-3 h-3 ml-1" />
-            </Button>
-          </CardHeader>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Sipariş No</TableHead>
-                  <TableHead>Cari Unvan</TableHead>
-                  <TableHead className="text-right">Tutar</TableHead>
-                  <TableHead>Durum</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {orders.slice(0, 5).map((order) => (
-                  <TableRow key={order.id}>
-                    <TableCell className="font-mono text-xs font-semibold text-slate-900">
-                      {order.orderNumber}
-                    </TableCell>
-                    <TableCell className="text-xs truncate max-w-[160px]">
-                      {order.partnerTitle || 'Cari Hesap'}
-                    </TableCell>
-                    <TableCell className="text-right font-mono text-xs font-semibold">
-                      ₺{order.totalAmount.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge status={order.status} />
-                    </TableCell>
-                  </TableRow>
+              Tüm Siparişler <ArrowRight className="w-3 h-3" />
+            </button>
+          </div>
+
+          <div className="overflow-auto max-h-72">
+            <table className="w-full border-collapse text-xs text-left">
+              <thead className="sticky top-0 bg-slate-200 text-slate-800 border-b border-slate-300 font-semibold text-[11px]">
+                <tr>
+                  <th className="px-2.5 py-1.5 border-r border-slate-300">Sipariş No</th>
+                  <th className="px-2.5 py-1.5 border-r border-slate-300">Cari Ünvan</th>
+                  <th className="px-2.5 py-1.5 text-right border-r border-slate-300">Toplam Tutar</th>
+                  <th className="px-2.5 py-1.5 text-center border-r border-slate-300">Kalem</th>
+                  <th className="px-2 py-1.5 text-center">Durum</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200">
+                {orders.slice(0, 7).map((ord) => (
+                  <tr
+                    key={ord.id}
+                    onClick={() => navigate('/orders')}
+                    className="hover:bg-slate-50 cursor-pointer"
+                  >
+                    <td className="px-2.5 py-1.5 font-mono text-[11px] font-semibold text-slate-900 border-r border-slate-200 whitespace-nowrap">
+                      {ord.orderNumber}
+                    </td>
+                    <td className="px-2.5 py-1.5 border-r border-slate-200 truncate max-w-[150px]">
+                      <span className="font-semibold text-slate-800">
+                        {ord.partnerTitle || `Cari #${ord.partnerId}`}
+                      </span>
+                      <span className="block text-[10px] text-slate-400 font-mono">
+                        {ord.orderType === 'SALES_ORDER' ? 'Satış Siparişi' : 'Alış Siparişi'}
+                      </span>
+                    </td>
+                    <td className="px-2.5 py-1.5 font-mono text-[11px] text-right font-semibold text-slate-900 border-r border-slate-200 whitespace-nowrap">
+                      {formatCurrency(ord.totalAmount)}
+                    </td>
+                    <td className="px-2.5 py-1.5 font-mono text-[11px] text-center text-slate-600 border-r border-slate-200 whitespace-nowrap">
+                      {ord.items?.length || 1}
+                    </td>
+                    <td className="px-2 py-1.5 text-center whitespace-nowrap">
+                      <StatusBadge status={ord.status} />
+                    </td>
+                  </tr>
                 ))}
                 {orders.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={4} className="text-center py-6 text-xs text-slate-400">
-                      Henüz sipariş kaydı bulunmuyor.
-                    </TableCell>
-                  </TableRow>
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-slate-400 text-xs">
+                      Veritabanında kayıtlı sipariş bulunamadı.
+                    </td>
+                  </tr>
                 )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
-      {/* Business Partners & Quick Link Strip */}
-      <Card>
-        <CardContent className="p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-slate-100 rounded-md border border-slate-200 text-slate-700">
-              <Building2 className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-xs font-bold text-slate-900 uppercase tracking-wide">
-                Cari Hesaplar & Portföy
-              </p>
-              <p className="text-xs text-slate-500">
-                Kayıtlı {partners.length} aktif cari hesap (müşteri ve tedarikçi firmalar)
-              </p>
-            </div>
+      {/* 4. ALT BÖLÜM: KRİTİK STOK ALARMI & ÇALIŞMA BANDI */}
+      <div className="bg-white border border-slate-300 rounded-sm shadow-2xs">
+        <div className="p-2.5 bg-slate-100 border-b border-slate-300 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-600" />
+            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wide">
+              Kritik Stok & Azalan Varyantlar Takip Paneli
+            </h3>
+            <span className="text-[10px] font-mono text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 font-semibold">
+              {stockMetrics.criticalVariants.length} Varyant Kritik Eşikte (≤ 15 Adet)
+            </span>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate('/partners')}
+          <button
+            onClick={() => navigate('/inventory')}
+            className="text-[11px] font-semibold text-slate-700 hover:text-slate-900 flex items-center gap-1 cursor-pointer"
           >
-            <span>Cari Kartları Yönet</span>
-            <ArrowRight className="w-3.5 h-3.5 ml-1" />
-          </Button>
-        </CardContent>
-      </Card>
+            Stok Girişi Yap <ArrowRight className="w-3 h-3" />
+          </button>
+        </div>
+
+        <div className="overflow-auto max-h-56">
+          <table className="w-full border-collapse text-xs text-left">
+            <thead className="sticky top-0 bg-slate-200 text-slate-800 border-b border-slate-300 font-semibold text-[11px]">
+              <tr>
+                <th className="px-2.5 py-1.5 border-r border-slate-300">Stok Kodu</th>
+                <th className="px-2.5 py-1.5 border-r border-slate-300">SKU / Varyant Adı</th>
+                <th className="px-2.5 py-1.5 text-right border-r border-slate-300">Fiili Stok</th>
+                <th className="px-2.5 py-1.5 text-right border-r border-slate-300">Rezerve Stok</th>
+                <th className="px-2.5 py-1.5 text-right border-r border-slate-300">Kullanılabilir</th>
+                <th className="px-2 py-1.5 text-center">Durum</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200">
+              {stockMetrics.criticalVariants.map((item) => (
+                <tr
+                  key={item.id}
+                  onClick={() => navigate('/inventory')}
+                  className="hover:bg-slate-50 cursor-pointer"
+                >
+                  <td className="px-2.5 py-1.5 font-mono text-[11px] font-bold text-slate-800 border-r border-slate-200 whitespace-nowrap">
+                    {item.productCode}
+                  </td>
+                  <td className="px-2.5 py-1.5 border-r border-slate-200">
+                    <span className="font-semibold text-slate-900">{item.name}</span>
+                    <span className="block font-mono text-[10px] text-slate-400">{item.sku}</span>
+                  </td>
+                  <td className="px-2.5 py-1.5 font-mono text-[11px] text-right text-slate-700 border-r border-slate-200">
+                    {item.physical.toLocaleString('tr-TR')}
+                  </td>
+                  <td className="px-2.5 py-1.5 font-mono text-[11px] text-right text-amber-700 font-medium border-r border-slate-200">
+                    {item.reserved.toLocaleString('tr-TR')}
+                  </td>
+                  <td className="px-2.5 py-1.5 font-mono text-[11px] text-right font-bold text-rose-800 border-r border-slate-200">
+                    {item.available.toLocaleString('tr-TR')}
+                  </td>
+                  <td className="px-2 py-1.5 text-center">
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase ${
+                        item.available <= 0
+                          ? 'bg-rose-100 text-rose-800 border-rose-300'
+                          : 'bg-amber-100 text-amber-800 border-amber-300'
+                      }`}
+                    >
+                      {item.available <= 0 ? 'TÜKENDİ' : 'KRİTİK'}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+              {stockMetrics.criticalVariants.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="py-6 text-center text-slate-500 text-xs">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-600 mx-auto mb-1" />
+                    Tüm ürün varyantlarında satılabilir stok seviyesi güvenli sınırın üzerindedir.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 };
+
+export default DashboardPage;

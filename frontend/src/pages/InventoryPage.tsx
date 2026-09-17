@@ -1,44 +1,72 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Package,
   Plus,
-  Search,
-  ChevronDown,
-  ChevronRight,
-  Edit2,
-  BookmarkPlus,
-  RefreshCw,
   Layers,
   Sparkles,
+  ArrowDownRight,
+  ArrowUpRight,
+  BookmarkPlus,
+  RefreshCw,
+  Eye,
+  SlidersHorizontal,
+  Printer,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { inventoryApi } from '../api/inventoryApi';
+import { useToast } from '../context/ToastContext';
 import { Product, ProductVariant, Category, ProductCreateRequest } from '../types';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-import { Select } from '../components/ui/select';
 import { Dialog } from '../components/ui/dialog';
-import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card';
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '../components/ui/table';
+import { StatusBadge } from '../components/common/StatusBadge';
+import { ErpToolbar } from '../components/common/ErpToolbar';
+import { ErpDataGrid, Column } from '../components/common/ErpDataGrid';
+import { ErpSummaryBar } from '../components/common/ErpSummaryBar';
 import { JsonViewer } from '../components/common/JsonViewer';
 
+const formatCurrency = (amount: number = 0) => {
+  return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(amount);
+};
+
+export interface FlattenedVariantItem extends ProductVariant {
+  productId: number;
+  productCode: string;
+  productName: string;
+  categoryName?: string;
+  basePrice: number;
+  productAttributes?: Record<string, any>;
+}
+
 export const InventoryPage: React.FC = () => {
+  const { toast } = useToast();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+
+  // View Mode: 'SKU' = Flat Variant list (standard warehouse/sales grid), 'PRODUCT' = Master Product Cards
+  const [viewMode, setViewMode] = useState<'SKU' | 'PRODUCT'>('SKU');
+
+  // Filters
+  const [activeTab, setActiveTab] = useState<'ALL' | 'IN_STOCK' | 'OUT_OF_STOCK'>('ALL');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
+  const [searchTerm, setSearchTerm] = useState('');
 
-  // Collapsed / Expanded state per product
-  const [expandedProducts, setExpandedProducts] = useState<Record<number, boolean>>({});
+  // Selected row state
+  const [selectedVariant, setSelectedVariant] = useState<FlattenedVariantItem | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
-  // Quick Stock Adjustment Dialog
+  // Modals
+  const [createProductModalOpen, setCreateProductModalOpen] = useState(false);
+  const [addVariantModalOpen, setAddVariantModalOpen] = useState(false);
   const [stockModalOpen, setStockModalOpen] = useState(false);
-  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
-  const [stockAdjustmentAmount, setStockAdjustmentAmount] = useState<number>(10);
-  const [stockActionType, setStockActionType] = useState<'ADD' | 'SUBTRACT' | 'RESERVE'>('ADD');
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
 
-  // New Product Modal
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  // Stock Adjustment Form
+  const [stockActionType, setStockActionType] = useState<'ADD' | 'SUBTRACT' | 'RESERVE' | 'RELEASE'>('ADD');
+  const [stockAdjustmentAmount, setStockAdjustmentAmount] = useState<number>(10);
+
+  // Create Product Form State
   const [newCode, setNewCode] = useState('');
   const [newName, setNewName] = useState('');
   const [newDescription, setNewDescription] = useState('');
@@ -49,11 +77,21 @@ export const InventoryPage: React.FC = () => {
     { key: 'sezon', value: '2026 İlkbahar' },
   ]);
   const [variantRows, setVariantRows] = useState<
-    Array<{ size: string; color: string; sku: string; initialStock: number }>
+    Array<{ size: string; color: string; sku: string; barcode: string; initialStock: number }>
   >([
-    { size: 'M', color: 'Siyah', sku: 'PRD-M-BLK', initialStock: 50 },
-    { size: 'L', color: 'Siyah', sku: 'PRD-L-BLK', initialStock: 50 },
+    { size: 'M', color: 'Siyah', sku: 'PRD-M-BLK', barcode: '8690001001', initialStock: 50 },
+    { size: 'L', color: 'Siyah', sku: 'PRD-L-BLK', barcode: '8690001002', initialStock: 50 },
   ]);
+
+  // Add Variant Form State
+  const [newVariantSku, setNewVariantSku] = useState('');
+  const [newVariantName, setNewVariantName] = useState('');
+  const [newVariantBarcode, setNewVariantBarcode] = useState('');
+  const [newVariantSize, setNewVariantSize] = useState('');
+  const [newVariantColor, setNewVariantColor] = useState('');
+  const [newVariantPurchasePrice, setNewVariantPurchasePrice] = useState<number>(150);
+  const [newVariantSalePrice, setNewVariantSalePrice] = useState<number>(250);
+  const [newVariantStock, setNewVariantStock] = useState<number>(20);
 
   const loadData = async () => {
     setLoading(true);
@@ -64,12 +102,33 @@ export const InventoryPage: React.FC = () => {
       ]);
       setProducts(prodList);
       setCategories(catList);
-      // Default expand first product
-      if (prodList.length > 0) {
-        setExpandedProducts({ [prodList[0].id]: true });
+
+      if (catList.length > 0 && newCategoryId === 1 && !catList.some((c) => c.id === 1)) {
+        setNewCategoryId(catList[0].id);
+      }
+
+      // Maintain selection
+      if (selectedProduct) {
+        const updatedP = prodList.find((p) => p.id === selectedProduct.id);
+        setSelectedProduct(updatedP || null);
+      }
+      if (selectedVariant) {
+        const flatList = prodList.flatMap((p) =>
+          p.variants.map((v) => ({
+            ...v,
+            productId: p.id,
+            productCode: p.code,
+            productName: p.name,
+            categoryName: p.categoryName,
+            basePrice: p.basePrice,
+            productAttributes: p.attributes,
+          }))
+        );
+        const updatedV = flatList.find((v) => v.id === selectedVariant.id);
+        setSelectedVariant(updatedV || null);
       }
     } catch (err) {
-      console.error('Ürünler yüklenirken hata:', err);
+      console.error('Stok verileri yüklenirken hata:', err);
     } finally {
       setLoading(false);
     }
@@ -79,20 +138,96 @@ export const InventoryPage: React.FC = () => {
     loadData();
   }, []);
 
-  const toggleExpand = (productId: number) => {
-    setExpandedProducts((prev) => ({ ...prev, [productId]: !prev[productId] }));
-  };
+  // Flatten all variants with their parent products
+  const allFlattenedVariants = useMemo<FlattenedVariantItem[]>(() => {
+    return products.flatMap((p) =>
+      p.variants.map((v) => ({
+        ...v,
+        productId: p.id,
+        productCode: p.code,
+        productName: p.name,
+        categoryName: p.categoryName,
+        basePrice: p.basePrice,
+        productAttributes: p.attributes,
+      }))
+    );
+  }, [products]);
 
-  const handleOpenStockModal = (
-    variant: ProductVariant,
-    type: 'ADD' | 'SUBTRACT' | 'RESERVE'
-  ) => {
-    setSelectedVariant(variant);
+  // Filtered SKU list
+  const filteredVariants = useMemo(() => {
+    return allFlattenedVariants.filter((v) => {
+      // Category
+      if (selectedCategory !== 'ALL') {
+        const prod = products.find((p) => p.id === v.productId);
+        if (prod && String(prod.categoryId) !== selectedCategory) return false;
+      }
+
+      // Status Tabs
+      if (activeTab === 'IN_STOCK' && v.stockQuantity <= 0) return false;
+      if (activeTab === 'OUT_OF_STOCK' && v.stockQuantity > 0) return false;
+
+      // Search term
+      if (searchTerm) {
+        const term = searchTerm.toLowerCase();
+        return (
+          v.sku.toLowerCase().includes(term) ||
+          v.productName.toLowerCase().includes(term) ||
+          v.productCode.toLowerCase().includes(term) ||
+          (v.barcode && v.barcode.toLowerCase().includes(term)) ||
+          (v.size && v.size.toLowerCase().includes(term)) ||
+          (v.color && v.color.toLowerCase().includes(term))
+        );
+      }
+      return true;
+    });
+  }, [allFlattenedVariants, products, selectedCategory, activeTab, searchTerm]);
+
+  // Filtered Products list (for Master Product mode)
+  const filteredProducts = useMemo(() => {
+    return products.filter((p) => {
+      if (selectedCategory !== 'ALL' && String(p.categoryId) !== selectedCategory) return false;
+
+      const totalPhysical = p.variants.reduce((sum, v) => sum + (v.stockQuantity || 0), 0);
+
+      if (activeTab === 'IN_STOCK' && totalPhysical <= 0) return false;
+      if (activeTab === 'OUT_OF_STOCK' && totalPhysical > 0) return false;
+
+      if (searchTerm) {
+        const term = searchTerm.toLowerCase();
+        return (
+          p.code.toLowerCase().includes(term) ||
+          p.name.toLowerCase().includes(term) ||
+          p.variants.some((v) => v.sku.toLowerCase().includes(term))
+        );
+      }
+      return true;
+    });
+  }, [products, selectedCategory, activeTab, searchTerm]);
+
+  // Financial and Stock Summary Metrics
+  const summaryMetrics = useMemo(() => {
+    const list = filteredVariants;
+    const totalPhysical = list.reduce((sum, v) => sum + (v.stockQuantity || 0), 0);
+    const totalReserved = list.reduce((sum, v) => sum + (v.reservedStock || 0), 0);
+    const totalAvailable = list.reduce((sum, v) => sum + (v.availableStock || 0), 0);
+    const totalValuation = list.reduce(
+      (sum, v) => sum + (v.stockQuantity || 0) * (v.basePrice || 0),
+      0
+    );
+
+    return { totalPhysical, totalReserved, totalAvailable, totalValuation };
+  }, [filteredVariants]);  // Handler: Open Quick Stock Modal
+  const handleOpenStockModal = (type: 'ADD' | 'SUBTRACT' | 'RESERVE' | 'RELEASE') => {
+    if (!selectedVariant) {
+      toast.warning('Lütfen stok işlemi yapmak istediğiniz satırı seçiniz.');
+      return;
+    }
     setStockActionType(type);
     setStockAdjustmentAmount(10);
     setStockModalOpen(true);
   };
 
+  // Handler: Stock Submit
   const handleStockSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedVariant) return;
@@ -100,6 +235,8 @@ export const InventoryPage: React.FC = () => {
     try {
       if (stockActionType === 'RESERVE') {
         await inventoryApi.reserveStock(selectedVariant.id, Number(stockAdjustmentAmount));
+      } else if (stockActionType === 'RELEASE') {
+        await inventoryApi.releaseReserve(selectedVariant.id, Number(stockAdjustmentAmount));
       } else {
         const delta =
           stockActionType === 'ADD'
@@ -107,24 +244,62 @@ export const InventoryPage: React.FC = () => {
             : -Number(stockAdjustmentAmount);
         await inventoryApi.updateStock(selectedVariant.id, delta);
       }
+      toast.success('Stok hareketi başarıyla işlendi.');
       setStockModalOpen(false);
       await loadData();
     } catch (err: any) {
-      alert('Stok işlemi başarısız: ' + (err.message || 'Hata'));
+      toast.error('Stok işlemi başarısız: ' + (err.response?.data?.message || err.message || 'Hata'));
     }
   };
 
-  // Add attribute row
-  const addAttributeRow = () => {
-    setAttributeRows([...attributeRows, { key: '', value: '' }]);
+  // Handler: Open Add Variant Modal
+  const handleOpenAddVariant = () => {
+    const targetProduct =
+      selectedProduct ||
+      (selectedVariant ? products.find((p) => p.id === selectedVariant.productId) : null);
+
+    if (!targetProduct) {
+      toast.warning('Lütfen önce varyant eklemek istediğiniz ürün kartını seçiniz.');
+      return;
+    }
+
+    setSelectedProduct(targetProduct);
+    const variantIndex = targetProduct.variants.length + 1;
+    setNewVariantSku(`${targetProduct.code}-VAR-${variantIndex}`);
+    setNewVariantName(`${targetProduct.name} - Varyant ${variantIndex}`);
+    setNewVariantBarcode(`869${Math.floor(1000000 + Math.random() * 9000000)}`);
+    setNewVariantSize('L');
+    setNewVariantColor('Mavi');
+    setNewVariantPurchasePrice(Math.round(targetProduct.basePrice * 0.6));
+    setNewVariantSalePrice(targetProduct.basePrice);
+    setNewVariantStock(25);
+    setAddVariantModalOpen(true);
   };
 
-  // Add variant row
-  const addVariantRow = () => {
-    setVariantRows([
-      ...variantRows,
-      { size: 'S', color: 'Beyaz', sku: `${newCode || 'PRD'}-${variantRows.length + 1}`, initialStock: 25 },
-    ]);
+  // Handler: Submit New Variant
+  const handleAddVariantSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedProduct || !newVariantSku || !newVariantName) return;
+
+    try {
+      await inventoryApi.addVariant(selectedProduct.id, {
+        sku: newVariantSku.toUpperCase(),
+        variantName: newVariantName,
+        barcode: newVariantBarcode || undefined,
+        purchasePrice: Number(newVariantPurchasePrice),
+        salePrice: Number(newVariantSalePrice),
+        stockQuantity: Number(newVariantStock),
+        attributes: {
+          beden: newVariantSize,
+          renk: newVariantColor,
+        },
+      });
+      toast.success(`'${newVariantSku}' varyantı başarıyla eklendi.`);
+      setAddVariantModalOpen(false);
+      await loadData();
+    } catch (err: any) {
+      toast.error('Varyant eklenirken hata: ' + (err.response?.data?.message || err.message));
+    }
   };
 
   // Create Product Submit
@@ -132,7 +307,6 @@ export const InventoryPage: React.FC = () => {
     e.preventDefault();
     if (!newCode || !newName) return;
 
-    // Convert attributes to JSONB record
     const attributesRecord: Record<string, string> = {};
     attributeRows.forEach((r) => {
       if (r.key.trim()) {
@@ -141,14 +315,15 @@ export const InventoryPage: React.FC = () => {
     });
 
     const payload: ProductCreateRequest = {
-      code: newCode,
+      code: newCode.toUpperCase(),
       name: newName,
       description: newDescription,
       basePrice: Number(newBasePrice),
       categoryId: Number(newCategoryId),
       attributes: attributesRecord,
       variants: variantRows.map((v) => ({
-        sku: v.sku,
+        sku: v.sku.toUpperCase(),
+        barcode: v.barcode,
         size: v.size,
         color: v.color,
         initialStock: Number(v.initialStock),
@@ -158,281 +333,442 @@ export const InventoryPage: React.FC = () => {
 
     try {
       await inventoryApi.createProduct(payload);
-      setIsCreateModalOpen(false);
-      // Reset
+      toast.success('Ürün kartı ve başlangıç varyantları sisteme kaydedildi.');
+      setCreateProductModalOpen(false);
       setNewCode('');
       setNewName('');
       setNewDescription('');
       await loadData();
     } catch (err: any) {
-      alert('Ürün oluşturulurken hata: ' + (err.message || 'Bilinmeyen hata'));
+      toast.error('Ürün oluşturulurken hata: ' + (err.response?.data?.message || err.message));
     }
   };
 
-  // Filtered products
-  const filteredProducts = products.filter((p) => {
-    const matchesSearch =
-      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.variants.some((v) => v.sku.toLowerCase().includes(searchTerm.toLowerCase()));
+  // Columns for SKU / Variant Flat Grid (High-density DİA ERP View)
+  const skuColumns: Column<FlattenedVariantItem>[] = [
+    {
+      id: 'productCode',
+      header: 'Ürün Kodu',
+      width: '130px',
+      accessor: (v) => <span className="font-mono font-bold text-slate-800">{v.productCode}</span>,
+    },
+    {
+      id: 'productName',
+      header: 'Ürün / Malzeme Adı',
+      accessor: (v) => (
+        <div>
+          <div className="font-semibold text-slate-900 text-xs">{v.productName}</div>
+          {v.categoryName && (
+            <span className="text-[10px] text-slate-500 font-medium">{v.categoryName}</span>
+          )}
+        </div>
+      ),
+    },
+    {
+      id: 'sku',
+      header: 'Varyant SKU',
+      width: '150px',
+      accessor: (v) => (
+        <span className="font-mono font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
+          {v.sku}
+        </span>
+      ),
+    },
+    {
+      id: 'barcode',
+      header: 'Barkod',
+      width: '120px',
+      accessor: (v) => <span className="font-mono text-slate-500">{v.barcode || '-'}</span>,
+    },
+    {
+      id: 'variantAttributes',
+      header: 'Beden / Renk',
+      width: '130px',
+      accessor: (v) => (
+        <span className="text-slate-700 font-medium">
+          {v.size || '-'} {v.color ? `/ ${v.color}` : ''}
+        </span>
+      ),
+    },
+    {
+      id: 'stockQuantity',
+      header: 'Fiili Stok',
+      width: '90px',
+      align: 'right',
+      accessor: (v) => (
+        <span className="font-mono font-semibold text-slate-800">{v.stockQuantity}</span>
+      ),
+    },
+    {
+      id: 'reservedStock',
+      header: 'Rezerve',
+      width: '90px',
+      align: 'right',
+      accessor: (v) => (
+        <span
+          className={`font-mono font-semibold ${
+            v.reservedStock > 0 ? 'text-amber-700' : 'text-slate-400'
+          }`}
+        >
+          {v.reservedStock}
+        </span>
+      ),
+    },
+    {
+      id: 'availableStock',
+      header: 'Kullanılabilir',
+      width: '100px',
+      align: 'right',
+      accessor: (v) => (
+        <span
+          className={`font-mono font-bold px-2 py-0.5 rounded ${
+            v.availableStock <= 0
+              ? 'bg-rose-100 text-rose-800 border border-rose-300'
+              : v.availableStock <= 5
+              ? 'bg-amber-100 text-amber-800 border border-amber-300'
+              : 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+          }`}
+        >
+          {v.availableStock}
+        </span>
+      ),
+    },
+    {
+      id: 'basePrice',
+      header: 'Baz Satış',
+      width: '110px',
+      align: 'right',
+      accessor: (v) => (
+        <span className="font-mono text-slate-900 font-semibold">
+          {formatCurrency(v.basePrice + (v.priceAdjustment || 0))}
+        </span>
+      ),
+    },
+    {
+      id: 'status',
+      header: 'Stok Durumu',
+      width: '110px',
+      align: 'center',
+      accessor: (v) => {
+        if (v.availableStock <= 0) {
+          return <StatusBadge status="Tükendi" type="danger" />;
+        }
+        if (v.availableStock <= 5) {
+          return <StatusBadge status="Kritik" type="warning" />;
+        }
+        return <StatusBadge status="Yeterli" type="success" />;
+      },
+    },
+  ];
 
-    const matchesCategory =
-      selectedCategory === 'ALL' || String(p.categoryId) === selectedCategory;
-
-    return matchesSearch && matchesCategory;
-  });
+  // Columns for Master Products Grid
+  const productColumns: Column<Product>[] = [
+    {
+      id: 'code',
+      header: 'Stok Kodu',
+      width: '150px',
+      accessor: (p) => <span className="font-mono font-bold text-slate-900">{p.code}</span>,
+    },
+    {
+      id: 'name',
+      header: 'Malzeme / Ürün Adı',
+      accessor: (p) => (
+        <div>
+          <div className="font-bold text-slate-900 text-xs">{p.name}</div>
+          {p.description && <div className="text-[11px] text-slate-500">{p.description}</div>}
+        </div>
+      ),
+    },
+    {
+      id: 'categoryName',
+      header: 'Kategori',
+      width: '140px',
+      accessor: (p) => (
+        <span className="text-slate-700 font-medium bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+          {p.categoryName || '-'}
+        </span>
+      ),
+    },
+    {
+      id: 'variantCount',
+      header: 'Varyant',
+      width: '80px',
+      align: 'center',
+      accessor: (p) => (
+        <span className="font-mono text-xs font-semibold bg-blue-50 text-blue-800 px-2 py-0.5 rounded border border-blue-200">
+          {p.variants.length} SKU
+        </span>
+      ),
+    },
+    {
+      id: 'totalPhysical',
+      header: 'Toplam Fiili',
+      width: '100px',
+      align: 'right',
+      accessor: (p) => (
+        <span className="font-mono font-semibold text-slate-800">
+          {p.variants.reduce((sum, v) => sum + (v.stockQuantity || 0), 0)}
+        </span>
+      ),
+    },
+    {
+      id: 'totalReserved',
+      header: 'Top. Rezerve',
+      width: '100px',
+      align: 'right',
+      accessor: (p) => {
+        const res = p.variants.reduce((sum, v) => sum + (v.reservedStock || 0), 0);
+        return (
+          <span className={`font-mono font-semibold ${res > 0 ? 'text-amber-700' : 'text-slate-400'}`}>
+            {res}
+          </span>
+        );
+      },
+    },
+    {
+      id: 'totalAvailable',
+      header: 'Kullanılabilir',
+      width: '110px',
+      align: 'right',
+      accessor: (p) => {
+        const avail = p.variants.reduce((sum, v) => sum + (v.availableStock || 0), 0);
+        return (
+          <span
+            className={`font-mono font-bold px-2 py-0.5 rounded ${
+              avail <= 5
+                ? 'bg-rose-50 text-rose-800 border border-rose-200'
+                : 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+            }`}
+          >
+            {avail}
+          </span>
+        );
+      },
+    },
+    {
+      id: 'basePrice',
+      header: 'Baz Fiyat',
+      width: '110px',
+      align: 'right',
+      accessor: (p) => (
+        <span className="font-mono font-semibold text-slate-900">{formatCurrency(p.basePrice)}</span>
+      ),
+    },
+    {
+      id: 'attributes',
+      header: 'JSONB Özellikler',
+      width: '160px',
+      accessor: (p) => (
+        <div className="truncate max-w-[150px] font-mono text-[10px] text-slate-600">
+          {p.attributes ? JSON.stringify(p.attributes) : '-'}
+        </div>
+      ),
+    },
+  ];
 
   return (
-    <div className="space-y-6">
-      {/* Top Action Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">
-            Stok & Varyant Yönetimi
-          </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            JSONB dinamik alanları, varyant matrisi ve anlık rezerve stok takip tablosu
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={loadData}>
-            <RefreshCw className="w-3.5 h-3.5" />
-            <span>Yenile</span>
-          </Button>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => setIsCreateModalOpen(true)}
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Yeni Ürün Kartı</span>
-          </Button>
-        </div>
-      </div>
-
-      {/* Filter and Search Bar */}
-      <Card className="p-4">
-        <div className="flex flex-col sm:flex-row gap-3 items-center">
-          <div className="relative flex-1 w-full">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-            <Input
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Ürün adı, stok kodu veya varyant SKU ara..."
-              className="pl-9 text-xs"
-            />
-          </div>
-          <div className="w-full sm:w-64">
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-slate-900"
+    <div className="space-y-0 select-none">
+      {/* 1. DİA ERP Toolbar */}
+      <ErpToolbar
+        title="Stok & Malzeme Kartları"
+        subtitle="Dinamik Varyant Matrisi & Rezerve Stok Takip Tablosu"
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder="Ürün adı, stok kodu, SKU veya barkod ara..."
+        onRefresh={loadData}
+        actions={[
+          {
+            label: 'Yeni Ürün Kartı',
+            icon: <Plus className="w-3.5 h-3.5 text-white" />,
+            onClick: () => setCreateProductModalOpen(true),
+            variant: 'primary',
+          },
+          {
+            label: 'Varyant Ekle',
+            icon: <Layers className="w-3.5 h-3.5 text-indigo-600" />,
+            onClick: handleOpenAddVariant,
+            disabled: !selectedProduct && !selectedVariant,
+            title: 'Seçili ana ürün kartına yeni bir SKU / Varyant ekler',
+          },
+          {
+            label: '+ Stok Girişi',
+            icon: <ArrowDownRight className="w-3.5 h-3.5 text-emerald-600" />,
+            onClick: () => handleOpenStockModal('ADD'),
+            disabled: !selectedVariant,
+            title: 'Seçili varyant için fiili stok artışı yapar',
+          },
+          {
+            label: '- Stok Çıkışı',
+            icon: <ArrowUpRight className="w-3.5 h-3.5 text-rose-600" />,
+            onClick: () => handleOpenStockModal('SUBTRACT'),
+            disabled: !selectedVariant,
+            title: 'Seçili varyant için fiili stok düşüşü yapar',
+          },
+          {
+            label: 'Kartı İncele / JSONB',
+            icon: <Eye className="w-3.5 h-3.5 text-blue-600" />,
+            onClick: () => {
+              if (!selectedVariant && !selectedProduct) {
+                toast.warning('Lütfen incelemek istediğiniz stok kartını seçiniz.');
+                return;
+              }
+              setDetailModalOpen(true);
+            },
+            disabled: !selectedVariant && !selectedProduct,
+          },
+          {
+            label: 'Yazdır',
+            icon: <Printer className="w-3.5 h-3.5 text-slate-600" />,
+            onClick: () => window.print(),
+          },
+        ]}
+      >
+        {/* Left Side: Category Selector & View Mode Switcher */}
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          {/* View Mode Toggle */}
+          <div className="flex items-center border border-slate-300 rounded overflow-hidden">
+            <button
+              onClick={() => setViewMode('SKU')}
+              className={`px-2.5 py-1 text-xs font-semibold cursor-pointer ${
+                viewMode === 'SKU'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white text-slate-700 hover:bg-slate-100'
+              }`}
             >
-              <option value="ALL">Tüm Kategoriler</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name} ({c.code})
-                </option>
-              ))}
-            </select>
+              Varyant & SKU Izgarası
+            </button>
+            <button
+              onClick={() => setViewMode('PRODUCT')}
+              className={`px-2.5 py-1 text-xs font-semibold cursor-pointer border-l border-slate-300 ${
+                viewMode === 'PRODUCT'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              Ana Stok Kartları
+            </button>
+          </div>
+
+          {/* Category Dropdown */}
+          <select
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            className="rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900 focus:outline-none focus:border-slate-900"
+          >
+            <option value="ALL">Tüm Kategoriler</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name} ({c.code})
+              </option>
+            ))}
+          </select>
+
+          {/* Quick Filter Status Tabs */}
+          <div className="flex items-center gap-1">
+            {[
+              { id: 'ALL', label: 'Tüm Stoklar' },
+              { id: 'IN_STOCK', label: 'Stokta Bulunanlar' },
+              { id: 'OUT_OF_STOCK', label: 'Tükenenler (0)' },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`px-2 py-1 rounded text-xs transition-colors cursor-pointer ${
+                  activeTab === tab.id
+                    ? 'bg-slate-800 text-white font-semibold'
+                    : 'bg-white hover:bg-slate-200 text-slate-700 border border-slate-300'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
         </div>
-      </Card>
+      </ErpToolbar>
 
-      {/* Products and Nested Variants Table */}
-      <div className="space-y-4">
-        {filteredProducts.map((product) => {
-          const isExpanded = !!expandedProducts[product.id];
-          const totalStock = product.variants.reduce((s, v) => s + v.stockQuantity, 0);
-          const totalReserved = product.variants.reduce((s, v) => s + v.reservedStock, 0);
-          const totalAvailable = product.variants.reduce((s, v) => s + v.availableStock, 0);
+      {/* 2. DİA ERP Veri Izgarası (Data Grid) */}
+      {viewMode === 'SKU' ? (
+        <ErpDataGrid
+          data={filteredVariants}
+          columns={skuColumns}
+          keyExtractor={(v) => v.id}
+          selectedId={selectedVariant?.id}
+          onSelectRow={(v) => {
+            setSelectedVariant(v);
+            const p = products.find((prod) => prod.id === v.productId);
+            setSelectedProduct(p || null);
+          }}
+          onDoubleClickRow={(v) => {
+            setSelectedVariant(v);
+            const p = products.find((prod) => prod.id === v.productId);
+            setSelectedProduct(p || null);
+            setDetailModalOpen(true);
+          }}
+          loading={loading}
+          emptyMessage="Kriterlere uygun varyant kaydı bulunamadı."
+        />
+      ) : (
+        <ErpDataGrid
+          data={filteredProducts}
+          columns={productColumns}
+          keyExtractor={(p) => p.id}
+          selectedId={selectedProduct?.id}
+          onSelectRow={(p) => {
+            setSelectedProduct(p);
+            if (p.variants.length > 0) {
+              setSelectedVariant(allFlattenedVariants.find((v) => v.productId === p.id) || null);
+            } else {
+              setSelectedVariant(null);
+            }
+          }}
+          onDoubleClickRow={(p) => {
+            setSelectedProduct(p);
+            setDetailModalOpen(true);
+          }}
+          loading={loading}
+          emptyMessage="Kriterlere uygun ürün kartı bulunamadı."
+        />
+      )}
 
-          return (
-            <Card key={product.id} className="overflow-hidden border border-slate-200">
-              {/* Product Summary Header Bar */}
-              <div
-                onClick={() => toggleExpand(product.id)}
-                className="p-4 bg-white hover:bg-slate-50/80 cursor-pointer flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <button className="text-slate-400 hover:text-slate-700">
-                    {isExpanded ? (
-                      <ChevronDown className="w-4 h-4 text-slate-900" />
-                    ) : (
-                      <ChevronRight className="w-4 h-4" />
-                    )}
-                  </button>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-                        {product.code}
-                      </span>
-                      <h3 className="text-sm font-bold text-slate-900">{product.name}</h3>
-                      {product.categoryName && (
-                        <span className="text-[11px] font-medium text-slate-500 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
-                          {product.categoryName}
-                        </span>
-                      )}
-                    </div>
-                    {product.description && (
-                      <p className="text-xs text-slate-500 mt-1">{product.description}</p>
-                    )}
-                    {/* Dynamic JSONB attributes */}
-                    <div className="mt-2">
-                      <JsonViewer data={product.attributes} />
-                    </div>
-                  </div>
-                </div>
+      {/* 3. DİA ERP Dip Toplam Çubuğu */}
+      <ErpSummaryBar
+        totalCount={viewMode === 'SKU' ? filteredVariants.length : filteredProducts.length}
+        selectedText={
+          selectedVariant
+            ? `Seçili SKU: ${selectedVariant.sku} (${selectedVariant.productName}) | Mevcut Stok: ${selectedVariant.stockQuantity}`
+            : selectedProduct
+            ? `Seçili Kart: ${selectedProduct.code} - ${selectedProduct.name} (${selectedProduct.variants.length} Varyant)`
+            : undefined
+        }
+        metrics={[
+          { label: 'Toplam Fiili Stok', value: `${summaryMetrics.totalPhysical.toLocaleString('tr-TR')} Adet` },
+          {
+            label: 'Toplam Stok Değeri',
+            value: formatCurrency(summaryMetrics.totalValuation),
+            highlight: 'success',
+          },
+        ]}
+      />
 
-                {/* Stock Stats Strip */}
-                <div className="flex items-center gap-6 self-end md:self-center font-mono text-xs">
-                  <div className="text-right">
-                    <p className="text-[10px] text-slate-400 font-sans uppercase font-bold">
-                      Baz Fiyat
-                    </p>
-                    <p className="font-bold text-slate-900">
-                      ₺{product.basePrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[10px] text-slate-400 font-sans uppercase font-bold">
-                      Fiili Stok
-                    </p>
-                    <p className="font-semibold text-slate-800">{totalStock}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[10px] text-amber-600 font-sans uppercase font-bold">
-                      Rezerve Stok
-                    </p>
-                    <p className="font-semibold text-amber-700">{totalReserved}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[10px] text-slate-400 font-sans uppercase font-bold">
-                      Kullanılabilir
-                    </p>
-                    <p
-                      className={`font-bold px-2 py-0.5 rounded ${
-                        totalAvailable <= 10
-                          ? 'bg-rose-50 text-rose-800 border border-rose-200'
-                          : 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                      }`}
-                    >
-                      {totalAvailable}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Nested Variants Table */}
-              {isExpanded && (
-                <div className="bg-slate-50/50 p-4 border-t border-slate-200">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-semibold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                      <Layers className="w-3.5 h-3.5 text-slate-500" /> Ürün Varyantları ({product.variants.length})
-                    </span>
-                  </div>
-
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Varyant SKU</TableHead>
-                        <TableHead>Barkod</TableHead>
-                        <TableHead>Beden</TableHead>
-                        <TableHead>Renk</TableHead>
-                        <TableHead className="text-right">Fiili Stok</TableHead>
-                        <TableHead className="text-right">Rezerve (MQ)</TableHead>
-                        <TableHead className="text-right">Kullanılabilir</TableHead>
-                        <TableHead className="text-right">Hızlı İşlem</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {product.variants.map((variant) => (
-                        <TableRow key={variant.id} className="bg-white">
-                          <TableCell className="font-mono text-xs font-semibold text-slate-900">
-                            {variant.sku}
-                          </TableCell>
-                          <TableCell className="font-mono text-xs text-slate-500">
-                            {variant.barcode || '-'}
-                          </TableCell>
-                          <TableCell className="text-xs font-semibold text-slate-700">
-                            {variant.size || '-'}
-                          </TableCell>
-                          <TableCell className="text-xs text-slate-700">
-                            {variant.color || '-'}
-                          </TableCell>
-                          <TableCell className="text-right font-mono text-xs font-semibold">
-                            {variant.stockQuantity}
-                          </TableCell>
-                          <TableCell className="text-right font-mono text-xs text-amber-700 font-semibold">
-                            {variant.reservedStock}
-                          </TableCell>
-                          <TableCell className="text-right font-mono text-xs">
-                            <span
-                              className={`font-bold ${
-                                variant.availableStock <= 5
-                                  ? 'text-rose-600'
-                                  : 'text-slate-900'
-                              }`}
-                            >
-                              {variant.availableStock}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-1.5">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-7 px-2 text-[11px]"
-                                onClick={() => handleOpenStockModal(variant, 'ADD')}
-                              >
-                                + Stok Girişi
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-7 px-2 text-[11px] text-amber-800 border-amber-300 bg-amber-50/50"
-                                onClick={() => handleOpenStockModal(variant, 'RESERVE')}
-                              >
-                                Rezerve Et
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </Card>
-          );
-        })}
-
-        {filteredProducts.length === 0 && !loading && (
-          <div className="text-center py-12 bg-white rounded-lg border border-slate-200">
-            <Package className="w-8 h-8 mx-auto text-slate-400 mb-2" />
-            <p className="text-sm font-semibold text-slate-700">Ürün bulunamadı</p>
-            <p className="text-xs text-slate-400 mt-1">Arama kriterlerinizi değiştirin veya yeni ürün kartı ekleyin.</p>
-          </div>
-        )}
-      </div>
-
-      {/* Stock Adjustment Dialog */}
+      {/* MODAL 1: Hızlı Stok Hareketi (Giriş / Çıkış / Rezerve / Bırak) */}
       <Dialog
         isOpen={stockModalOpen}
         onClose={() => setStockModalOpen(false)}
         title={
           stockActionType === 'RESERVE'
-            ? 'Stok Rezerve Etme Testi'
+            ? 'Stok Rezerve Etme Testi (RabbitMQ)'
+            : stockActionType === 'RELEASE'
+            ? 'Rezerve Stoğu Serbest Bırak'
             : stockActionType === 'ADD'
-            ? 'Fiili Stok Girişi Yap'
-            : 'Fiili Stok Çıkışı Yap'
+            ? 'Fiili Stok Girişi (+)'
+            : 'Fiili Stok Çıkışı (-)'
         }
-        description={`Seçili Varyant: ${selectedVariant?.sku} (${selectedVariant?.size || ''} - ${selectedVariant?.color || ''})`}
+        description={`Seçili Varyant: ${selectedVariant?.sku} (${selectedVariant?.productName})`}
         maxWidth="sm"
       >
         <form onSubmit={handleStockSubmit} className="space-y-4">
           <Input
-            label="Miktar (Adet)"
+            label="İşlem Miktarı (Adet)"
             type="number"
             min="1"
             value={stockAdjustmentAmount}
@@ -440,53 +776,149 @@ export const InventoryPage: React.FC = () => {
             required
           />
 
-          <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600 space-y-1 font-mono">
-            <p>Mevcut Fiili Stok: {selectedVariant?.stockQuantity}</p>
-            <p>Mevcut Rezerve Stok: {selectedVariant?.reservedStock}</p>
-            <p>Mevcut Kullanılabilir: {selectedVariant?.availableStock}</p>
+          <div className="rounded border border-slate-300 bg-slate-50 p-3 text-xs text-slate-700 space-y-1 font-mono">
+            <div className="flex justify-between">
+              <span>Mevcut Fiili Stok:</span>
+              <span className="font-bold">{selectedVariant?.stockQuantity} Adet</span>
+            </div>
+            <div className="flex justify-between text-amber-700">
+              <span>Mevcut Rezerve Stok:</span>
+              <span className="font-bold">{selectedVariant?.reservedStock} Adet</span>
+            </div>
+            <div className="flex justify-between text-emerald-700 border-t border-slate-200 pt-1">
+              <span>Mevcut Kullanılabilir:</span>
+              <span className="font-bold">{selectedVariant?.availableStock} Adet</span>
+            </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+          <div className="flex justify-end gap-2 pt-3 border-t border-slate-200">
             <Button type="button" variant="outline" onClick={() => setStockModalOpen(false)}>
               Vazgeç
             </Button>
-            <Button type="submit" variant="primary">
-              İşlemi Tamamla
+            <Button
+              type="submit"
+              variant={stockActionType === 'SUBTRACT' ? 'destructive' : 'primary'}
+            >
+              İşlemi Onayla
             </Button>
           </div>
         </form>
       </Dialog>
 
-      {/* Create Product Modal */}
+      {/* MODAL 2: Yeni Varyant Ekleme Modalı */}
       <Dialog
-        isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        title="Yeni Ürün Kartı ve Varyantları Tanımla"
-        description="JSONB dinamik özellikleri ve alt varyant matrisi tek seferde oluşturulacaktır."
-        maxWidth="2xl"
+        isOpen={addVariantModalOpen}
+        onClose={() => setAddVariantModalOpen(false)}
+        title={`Ürüne Yeni Varyant / SKU Ekle — ${selectedProduct?.name || ''}`}
+        description={`Stok Kodu: ${selectedProduct?.code || ''}`}
+        maxWidth="md"
       >
-        <form onSubmit={handleCreateProduct} className="space-y-5">
-          {/* Main Product Info */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <form onSubmit={handleAddVariantSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
             <Input
-              label="Ürün Kodu"
-              value={newCode}
-              onChange={(e) => setNewCode(e.target.value.toUpperCase())}
-              placeholder="Örn: PRD-GOMLEK-01"
+              label="Varyant SKU"
+              value={newVariantSku}
+              onChange={(e) => setNewVariantSku(e.target.value.toUpperCase())}
+              placeholder="Örn: PRD-XL-RED"
               required
             />
             <Input
-              label="Ürün Adı"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              placeholder="Örn: İtalyan Yaka Slim Fit Gömlek"
+              label="Barkod (EAN/UPC)"
+              value={newVariantBarcode}
+              onChange={(e) => setNewVariantBarcode(e.target.value)}
+              placeholder="869..."
+            />
+          </div>
+
+          <Input
+            label="Varyant Adı / Tanımı"
+            value={newVariantName}
+            onChange={(e) => setNewVariantName(e.target.value)}
+            placeholder="Örn: Kırmızı - XL"
+            required
+          />
+
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="Beden / Ölçü"
+              value={newVariantSize}
+              onChange={(e) => setNewVariantSize(e.target.value)}
+              placeholder="Örn: XL, 42, 100ml"
+            />
+            <Input
+              label="Renk"
+              value={newVariantColor}
+              onChange={(e) => setNewVariantColor(e.target.value)}
+              placeholder="Örn: Kırmızı, Lacivert"
+            />
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <Input
+              label="Alış Fiyatı (TL)"
+              type="number"
+              step="0.01"
+              value={newVariantPurchasePrice}
+              onChange={(e) => setNewVariantPurchasePrice(Number(e.target.value))}
+              required
+            />
+            <Input
+              label="Satış Fiyatı (TL)"
+              type="number"
+              step="0.01"
+              value={newVariantSalePrice}
+              onChange={(e) => setNewVariantSalePrice(Number(e.target.value))}
+              required
+            />
+            <Input
+              label="Başlangıç Stoğu"
+              type="number"
+              value={newVariantStock}
+              onChange={(e) => setNewVariantStock(Number(e.target.value))}
               required
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="flex justify-end gap-2 pt-3 border-t border-slate-200">
+            <Button type="button" variant="outline" onClick={() => setAddVariantModalOpen(false)}>
+              Vazgeç
+            </Button>
+            <Button type="submit" variant="primary">
+              Varyantı Kaydet
+            </Button>
+          </div>
+        </form>
+      </Dialog>
+
+      {/* MODAL 3: Yeni Ana Ürün Kartı Tanımlama */}
+      <Dialog
+        isOpen={createProductModalOpen}
+        onClose={() => setCreateProductModalOpen(false)}
+        title="Yeni Malzeme / Stok Kartı Tanımla"
+        description="JSONB dinamik nitelikleri ve başlangıç varyant matrisi"
+        maxWidth="2xl"
+      >
+        <form onSubmit={handleCreateProduct} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <Input
-              label="Baz Fiyat (TL)"
+              label="Stok / Malzeme Kodu"
+              value={newCode}
+              onChange={(e) => setNewCode(e.target.value.toUpperCase())}
+              placeholder="Örn: STK-KAZAK-01"
+              required
+            />
+            <Input
+              label="Ürün / Malzeme Adı"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="Örn: Boğazlı Yün Triko Kazak"
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <Input
+              label="Baz Satış Fiyatı (TL)"
               type="number"
               step="0.01"
               value={newBasePrice}
@@ -494,17 +926,17 @@ export const InventoryPage: React.FC = () => {
               required
             />
             <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
                 Kategori
               </label>
               <select
                 value={newCategoryId}
                 onChange={(e) => setNewCategoryId(Number(e.target.value))}
-                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-slate-900"
+                className="w-full rounded border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-slate-900"
               >
                 {categories.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.name}
+                    {c.name} ({c.code})
                   </option>
                 ))}
               </select>
@@ -515,38 +947,38 @@ export const InventoryPage: React.FC = () => {
             label="Açıklama / Notlar"
             value={newDescription}
             onChange={(e) => setNewDescription(e.target.value)}
-            placeholder="Kumaş dokusu, kalıp ve bakım detayları..."
+            placeholder="Malzeme tipi, saklama koşulları, menşei..."
           />
 
-          {/* Dynamic JSONB Attributes Section */}
-          <div className="rounded-lg border border-slate-200 p-4 bg-slate-50/50 space-y-3">
+          {/* JSONB Dynamic Attributes */}
+          <div className="rounded border border-slate-300 p-3 bg-slate-50 space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-slate-600" /> JSONB Dinamik Nitelikler (Kumaş, Sezon vb.)
+                <Sparkles className="w-3.5 h-3.5 text-blue-600" /> JSONB Dinamik Özellikler (Kumaş, Sezon, Kesim vb.)
               </span>
               <button
                 type="button"
-                onClick={addAttributeRow}
-                className="text-xs text-slate-700 hover:text-slate-900 font-semibold flex items-center gap-1"
+                onClick={() => setAttributeRows([...attributeRows, { key: '', value: '' }])}
+                className="text-xs text-blue-700 hover:text-blue-900 font-semibold flex items-center gap-1 cursor-pointer"
               >
-                <Plus className="w-3 h-3" /> Nitelik Ekle
+                <Plus className="w-3 h-3" /> Özellik Ekle
               </button>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {attributeRows.map((row, idx) => (
                 <div key={idx} className="flex gap-2 items-center">
                   <Input
-                    placeholder="Alan adı (Örn: kumas, kesim)"
+                    placeholder="Alan adı (Örn: kumas)"
                     value={row.key}
                     onChange={(e) => {
                       const updated = [...attributeRows];
                       updated[idx].key = e.target.value;
                       setAttributeRows(updated);
                     }}
-                    className="text-xs"
+                    className="text-xs font-mono"
                   />
                   <Input
-                    placeholder="Değer (Örn: %100 Keten)"
+                    placeholder="Değer (Örn: %100 Yün)"
                     value={row.value}
                     onChange={(e) => {
                       const updated = [...attributeRows];
@@ -558,31 +990,42 @@ export const InventoryPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setAttributeRows(attributeRows.filter((_, i) => i !== idx))}
-                    className="text-xs text-rose-600 hover:text-rose-800 px-2 py-1"
+                    className="text-xs text-rose-600 hover:text-rose-800 px-2 py-1 cursor-pointer"
                   >
-                    Kaldır
+                    Sil
                   </button>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Variant Generation Matrix */}
-          <div className="rounded-lg border border-slate-200 p-4 bg-slate-50/50 space-y-3">
+          {/* Initial Variants Matrix */}
+          <div className="rounded border border-slate-300 p-3 bg-slate-50 space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                <Layers className="w-3.5 h-3.5 text-slate-600" /> Varyantlar & Başlangıç Stokları
+                <Layers className="w-3.5 h-3.5 text-indigo-600" /> Başlangıç Varyantları ({variantRows.length})
               </span>
               <button
                 type="button"
-                onClick={addVariantRow}
-                className="text-xs text-slate-700 hover:text-slate-900 font-semibold flex items-center gap-1"
+                onClick={() =>
+                  setVariantRows([
+                    ...variantRows,
+                    {
+                      size: 'XL',
+                      color: 'Siyah',
+                      sku: `${newCode || 'PRD'}-${variantRows.length + 1}`,
+                      barcode: `869${Math.floor(1000000 + Math.random() * 9000000)}`,
+                      initialStock: 25,
+                    },
+                  ])
+                }
+                className="text-xs text-blue-700 hover:text-blue-900 font-semibold flex items-center gap-1 cursor-pointer"
               >
                 <Plus className="w-3 h-3" /> Varyant Ekle
               </button>
             </div>
 
-            <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+            <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
               {variantRows.map((v, idx) => (
                 <div key={idx} className="flex gap-2 items-center">
                   <Input
@@ -593,7 +1036,17 @@ export const InventoryPage: React.FC = () => {
                       updated[idx].sku = e.target.value;
                       setVariantRows(updated);
                     }}
-                    className="text-xs font-mono"
+                    className="text-xs font-mono w-36"
+                  />
+                  <Input
+                    placeholder="Barkod"
+                    value={v.barcode}
+                    onChange={(e) => {
+                      const updated = [...variantRows];
+                      updated[idx].barcode = e.target.value;
+                      setVariantRows(updated);
+                    }}
+                    className="text-xs font-mono w-28"
                   />
                   <Input
                     placeholder="Beden"
@@ -603,7 +1056,7 @@ export const InventoryPage: React.FC = () => {
                       updated[idx].size = e.target.value;
                       setVariantRows(updated);
                     }}
-                    className="text-xs w-24"
+                    className="text-xs w-20"
                   />
                   <Input
                     placeholder="Renk"
@@ -613,7 +1066,7 @@ export const InventoryPage: React.FC = () => {
                       updated[idx].color = e.target.value;
                       setVariantRows(updated);
                     }}
-                    className="text-xs w-28"
+                    className="text-xs w-24"
                   />
                   <Input
                     type="number"
@@ -624,12 +1077,12 @@ export const InventoryPage: React.FC = () => {
                       updated[idx].initialStock = Number(e.target.value);
                       setVariantRows(updated);
                     }}
-                    className="text-xs w-24"
+                    className="text-xs w-20"
                   />
                   <button
                     type="button"
                     onClick={() => setVariantRows(variantRows.filter((_, i) => i !== idx))}
-                    className="text-xs text-rose-600 hover:text-rose-800 px-2"
+                    className="text-xs text-rose-600 hover:text-rose-800 px-2 cursor-pointer"
                   >
                     Sil
                   </button>
@@ -638,19 +1091,121 @@ export const InventoryPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+          <div className="flex justify-end gap-2 pt-3 border-t border-slate-200">
             <Button
               type="button"
               variant="outline"
-              onClick={() => setIsCreateModalOpen(false)}
+              onClick={() => setCreateProductModalOpen(false)}
             >
               Vazgeç
             </Button>
             <Button type="submit" variant="primary">
-              Ürün Kartını Kaydet
+              Stok Kartını Kaydet
             </Button>
           </div>
         </form>
+      </Dialog>
+
+      {/* MODAL 4: Kart Detay ve JSONB Özellikleri Modalı */}
+      <Dialog
+        isOpen={detailModalOpen}
+        onClose={() => setDetailModalOpen(false)}
+        title={`Stok Kartı Detayı — ${selectedProduct?.name || selectedVariant?.productName || ''}`}
+        description={`Stok Kodu: ${selectedProduct?.code || selectedVariant?.productCode || ''}`}
+        maxWidth="2xl"
+      >
+        <div className="space-y-4">
+          {/* Main Info */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 bg-slate-50 p-3 rounded border border-slate-200 text-xs">
+            <div>
+              <span className="text-slate-400 block">Stok Kodu</span>
+              <span className="font-mono font-bold text-slate-800">
+                {selectedProduct?.code || selectedVariant?.productCode}
+              </span>
+            </div>
+            <div>
+              <span className="text-slate-400 block">Kategori</span>
+              <span className="font-semibold text-slate-800">
+                {selectedProduct?.categoryName || selectedVariant?.categoryName || '-'}
+              </span>
+            </div>
+            <div>
+              <span className="text-slate-400 block">Baz Fiyat</span>
+              <span className="font-mono font-bold text-slate-900">
+                {formatCurrency(selectedProduct?.basePrice || selectedVariant?.basePrice || 0)}
+              </span>
+            </div>
+            <div>
+              <span className="text-slate-400 block">Toplam Varyant</span>
+              <span className="font-mono font-semibold text-slate-800">
+                {selectedProduct?.variants.length || 1} SKU
+              </span>
+            </div>
+          </div>
+
+          {/* Dynamic JSONB Attributes */}
+          <div>
+            <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-blue-600" /> PostgreSQL JSONB Dinamik Nitelikler
+            </h4>
+            <div className="border border-slate-200 rounded p-2 bg-white">
+              <JsonViewer data={selectedProduct?.attributes || selectedVariant?.productAttributes} />
+            </div>
+          </div>
+
+          {/* Variants Table Inside Modal */}
+          {selectedProduct && selectedProduct.variants.length > 0 && (
+            <div>
+              <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                <Layers className="w-3.5 h-3.5 text-indigo-600" /> Alt Varyantlar & Stok Dağılımı
+              </h4>
+              <div className="border border-slate-300 rounded overflow-hidden">
+                <table className="w-full text-xs text-left border-collapse">
+                  <thead className="bg-slate-100 text-slate-700 font-semibold border-b border-slate-300">
+                    <tr>
+                      <th className="p-2 border-r border-slate-300">SKU</th>
+                      <th className="p-2 border-r border-slate-300">Barkod</th>
+                      <th className="p-2 border-r border-slate-300">Ölçü / Renk</th>
+                      <th className="p-2 text-right border-r border-slate-300">Fiili</th>
+                      <th className="p-2 text-right border-r border-slate-300">Rezerve</th>
+                      <th className="p-2 text-right">Kullanılabilir</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {selectedProduct.variants.map((v) => (
+                      <tr key={v.id} className="hover:bg-slate-50">
+                        <td className="p-2 font-mono font-bold text-blue-700 border-r border-slate-300">
+                          {v.sku}
+                        </td>
+                        <td className="p-2 font-mono text-slate-500 border-r border-slate-300">
+                          {v.barcode || '-'}
+                        </td>
+                        <td className="p-2 border-r border-slate-300">
+                          {v.size || '-'} {v.color ? `/ ${v.color}` : ''}
+                        </td>
+                        <td className="p-2 text-right font-mono font-semibold border-r border-slate-300">
+                          {v.stockQuantity}
+                        </td>
+                        <td className="p-2 text-right font-mono text-amber-700 font-semibold border-r border-slate-300">
+                          {v.reservedStock}
+                        </td>
+                        <td className="p-2 text-right font-mono font-bold text-emerald-700">
+                          {v.availableStock}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-end pt-2 border-t border-slate-200">
+            <Button variant="outline" onClick={() => setDetailModalOpen(false)}>
+              Kapat
+            </Button>
+          </div>
+        </div>
       </Dialog>
     </div>
   );

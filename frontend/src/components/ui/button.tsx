@@ -1,5 +1,24 @@
 import React from 'react';
 
+/**
+ * ============================================================================
+ * MiniERP - Button Bileşeni
+ * ============================================================================
+ * Kullanım Örnekleri:
+ * 
+ * 1. Birincil Buton (Primary):
+ *    <Button variant="primary" onClick={handleSave}>Kaydet</Button>
+ * 
+ * 2. İkincil / Açık Buton (Outline / Secondary):
+ *    <Button variant="outline" onClick={handleCancel}>Vazgeç</Button>
+ * 
+ * 3. Silme / Tehlikeli Buton (Destructive):
+ *    <Button variant="destructive" onClick={handleDelete}>Sil</Button>
+ * 
+ * 4. Yükleniyor Durumu (Loading):
+ *    <Button isLoading={loading}>İşlem Yapılıyor</Button>
+ */
+
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'outline' | 'destructive' | 'ghost';
   size?: 'sm' | 'md' | 'lg';
@@ -15,7 +34,8 @@ export const Button: React.FC<ButtonProps> = ({
   disabled,
   ...props
 }) => {
-  const baseStyles = 'inline-flex items-center justify-center font-medium transition-colors focus:outline-none focus:ring-1 focus:ring-slate-900 disabled:opacity-50 disabled:pointer-events-none rounded-md select-none';
+  const baseStyles =
+    'inline-flex items-center justify-center font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-1 disabled:opacity-50 disabled:pointer-events-none rounded-md select-none cursor-pointer';
 
   const sizeStyles = {
     sm: 'h-8 px-3 text-xs gap-1.5',
@@ -26,7 +46,7 @@ export const Button: React.FC<ButtonProps> = ({
   const variantStyles = {
     primary: 'bg-slate-900 text-white hover:bg-slate-800 border border-slate-900 shadow-sm active:bg-slate-950',
     secondary: 'bg-slate-100 text-slate-900 hover:bg-slate-200 border border-slate-200 shadow-sm active:bg-slate-300',
-    outline: 'bg-white text-slate-800 hover:bg-slate-50 border border-slate-300 shadow-sm active:bg-slate-100',
+    outline: 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-300 shadow-sm active:bg-slate-100',
     destructive: 'bg-red-600 text-white hover:bg-red-700 border border-red-600 shadow-sm active:bg-red-800',
     ghost: 'bg-transparent text-slate-700 hover:bg-slate-100 border border-transparent',
   }[variant];

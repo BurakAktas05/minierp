@@ -43,7 +43,23 @@ public class BusinessPartnerDto {
      */
     private Map<String, Object> metadata;
 
+    /**
+     * Finansal bakiye özetleri
+     */
+    private java.math.BigDecimal totalDebit;
+    private java.math.BigDecimal totalCredit;
+    private java.math.BigDecimal balance;
+
+    private String code;
     private OffsetDateTime createdAt;
+
+    @JsonProperty("code")
+    public String getCode() {
+        if (code != null && !code.isBlank()) {
+            return code;
+        }
+        return "CAR-" + String.format("%04d", id != null ? id : 0);
+    }
 
     @JsonProperty("title")
     public String getTitle() {

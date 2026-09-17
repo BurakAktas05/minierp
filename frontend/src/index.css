@@ -65,3 +65,41 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
+
+/* =========================================================
+   OFFICIAL DOCUMENT PRINT STYLES (GİB e-Fatura & e-İrsaliye)
+   ========================================================= */
+@media print {
+  /* Ekran arayüzünü (sidebar, header, menüler, butonlar vb.) tamamen gizle */
+  body * {
+    visibility: hidden !important;
+  }
+
+  /* Yalnızca resmi baskı şablonunu ve alt elemanlarını görünür yap */
+  #official-print-area,
+  #official-print-area * {
+    visibility: visible !important;
+  }
+
+  /* Resmi şablonu A4 sayfasına tam oturt */
+  #official-print-area {
+    position: fixed !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    display: block !important;
+    z-index: 9999999 !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 10mm 12mm 10mm 12mm;
+  }
+}

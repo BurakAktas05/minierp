@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, Tenant } from '../types';
 import { authApi } from '../api/authApi';
-import { TOKEN_KEY, TENANT_KEY, USER_KEY, DEMO_MODE_KEY } from '../api/client';
+import { TOKEN_KEY, TENANT_KEY, USER_KEY } from '../api/client';
 
 interface AuthContextType {
   user: User | null;
@@ -9,12 +9,10 @@ interface AuthContextType {
   activeTenant: string;
   tenants: Tenant[];
   isLoading: boolean;
-  isDemoMode: boolean;
   login: (tenantId: string, username: string, password: string) => Promise<void>;
   logout: () => void;
   switchTenant: (tenantId: string) => void;
   createTenant: (tenantId: string, name: string) => Promise<void>;
-  toggleDemoMode: () => void;
   isAdmin: boolean;
   isManager: boolean;
 }
@@ -30,31 +28,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [activeTenant, setActiveTenant] = useState<string>(() => localStorage.getItem(TENANT_KEY) || 'tenant_tekstil');
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [isDemoMode, setIsDemoMode] = useState<boolean>(() => localStorage.getItem(DEMO_MODE_KEY) === 'true');
 
   const fetchTenants = async () => {
     try {
       const list = await authApi.getTenants();
-      setTenants(list);
+      if (Array.isArray(list)) {
+        setTenants(list);
+      }
     } catch (err) {
-      console.error('Error fetching tenants:', err);
+      console.error('Kiracılar backendden alınamadı:', err);
     }
   };
 
   useEffect(() => {
     fetchTenants();
-    // Default demo user if not logged in
-    if (!user) {
-      const defaultUser: User = {
-        username: 'admin',
-        role: 'ROLE_ADMIN',
-        tenantId: activeTenant,
-        fullName: 'Sistem Yöneticisi',
-      };
-      setUser(defaultUser);
-      localStorage.setItem(USER_KEY, JSON.stringify(defaultUser));
-      localStorage.setItem(TENANT_KEY, activeTenant);
-    }
   }, []);
 
   const login = async (tenantId: string, username: string, password: string) => {
@@ -68,10 +55,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         fullName: res.username === 'admin' ? 'Sistem Yöneticisi' : res.username,
       };
       setUser(loggedUser);
-      setToken(res.token);
+      const jwt = res.token || res.accessToken || '';
+      setUser(loggedUser);
+      setToken(jwt);
       setActiveTenant(res.tenantId);
 
-      localStorage.setItem(TOKEN_KEY, res.token);
+      localStorage.setItem(TOKEN_KEY, jwt);
       localStorage.setItem(TENANT_KEY, res.tenantId);
       localStorage.setItem(USER_KEY, JSON.stringify(loggedUser));
     } finally {
@@ -94,19 +83,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(updated);
       localStorage.setItem(USER_KEY, JSON.stringify(updated));
     }
-    // Reload window to re-fetch all schema data
+    // Yeniden yükleyerek yeni şemanın verilerini çek
     window.location.reload();
   };
 
   const createTenant = async (tenantId: string, name: string) => {
     await authApi.createTenant({ tenantId, name });
     await fetchTenants();
-  };
-
-  const toggleDemoMode = () => {
-    const next = !isDemoMode;
-    setIsDemoMode(next);
-    localStorage.setItem(DEMO_MODE_KEY, String(next));
   };
 
   const isAdmin = user?.role === 'ROLE_ADMIN';
@@ -120,12 +103,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         activeTenant,
         tenants,
         isLoading,
-        isDemoMode,
         login,
         logout,
         switchTenant,
         createTenant,
-        toggleDemoMode,
         isAdmin,
         isManager,
       }}

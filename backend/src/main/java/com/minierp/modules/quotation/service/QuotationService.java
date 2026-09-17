@@ -15,5 +15,7 @@ public interface QuotationService {
 
     QuotationResponse getQuotationById(Long id);
 
+    QuotationResponse updateQuotation(Long id, CreateQuotationRequest request);
+
     QuotationResponse updateQuotationStatus(Long id, QuotationStatus newStatus);
 }

@@ -2,6 +2,7 @@ package com.minierp.modules.order.service.impl;
 
 import com.minierp.core.common.exception.BusinessException;
 import com.minierp.core.common.exception.ResourceNotFoundException;
+import com.minierp.core.common.service.DocumentNumberService;
 import com.minierp.core.multitenancy.TenantContext;
 import com.minierp.modules.inventory.entity.ProductVariant;
 import com.minierp.modules.inventory.repository.ProductVariantRepository;
@@ -35,7 +36,6 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.OffsetDateTime;
 import java.util.List;
-import java.util.UUID;
 
 @Slf4j
 @Service
@@ -48,6 +48,7 @@ public class OrderServiceImpl implements OrderService {
     private final QuotationRepository quotationRepository;
     private final OrderMapper orderMapper;
     private final OrderEventPublisher orderEventPublisher;
+    private final DocumentNumberService documentNumberService;
 
     @Override
     @Transactional
@@ -55,8 +56,8 @@ public class OrderServiceImpl implements OrderService {
         BusinessPartner partner = businessPartnerRepository.findById(request.getPartnerId())
                 .orElseThrow(() -> new ResourceNotFoundException("Cari Hesap", "id", request.getPartnerId()));
 
-        String prefix = request.getOrderType() == OrderType.SALES_ORDER ? "SIP-SAT-" : "SIP-ALS-" ;
-        String orderNumber = prefix + System.currentTimeMillis() + "-" + UUID.randomUUID().toString().substring(0, 4).toUpperCase();
+        String prefix = request.getOrderType() == OrderType.SALES_ORDER ? "SIP-SAT" : "SIP-ALS";
+        String orderNumber = documentNumberService.generateNumber("ORDER", prefix);
 
         Order order = Order.builder()
                 .orderNumber(orderNumber)
@@ -92,8 +93,8 @@ public class OrderServiceImpl implements OrderService {
         }
 
         OrderType orderType = quotation.getType() == QuotationType.SALES ? OrderType.SALES_ORDER : OrderType.PURCHASE_ORDER;
-        String prefix = orderType == OrderType.SALES_ORDER ? "SIP-SAT-" : "SIP-ALS-";
-        String orderNumber = prefix + System.currentTimeMillis() + "-" + UUID.randomUUID().toString().substring(0, 4).toUpperCase();
+        String prefix = orderType == OrderType.SALES_ORDER ? "SIP-SAT" : "SIP-ALS";
+        String orderNumber = documentNumberService.generateNumber("ORDER", prefix);
 
         Order order = Order.builder()
                 .orderNumber(orderNumber)
@@ -150,6 +151,32 @@ public class OrderServiceImpl implements OrderService {
         Order order = orderRepository.findByIdWithDetails(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Sipariş", "id", id));
         return orderMapper.toResponse(order);
+    }
+
+    @Override
+    @Transactional
+    public OrderResponse updateOrder(Long id, CreateOrderRequest request) {
+        Order order = orderRepository.findByIdWithDetails(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Sipariş", "id", id));
+
+        if (order.getStatus() != OrderStatus.DRAFT) {
+            throw new BusinessException("Sadece DRAFT durumundaki siparişler güncellenebilir! Mevcut Durum: " + order.getStatus());
+        }
+
+        if (request.getDeliveryDate() != null) order.setDeliveryDate(request.getDeliveryDate());
+        if (request.getCurrency() != null) order.setCurrency(request.getCurrency());
+        if (request.getNotes() != null) order.setNotes(request.getNotes());
+        if (request.getMetadata() != null) order.setMetadata(request.getMetadata());
+
+        if (request.getItems() != null && !request.getItems().isEmpty()) {
+            order.getItems().clear();
+            processOrderItems(order, request.getItems());
+        }
+
+        Order updated = orderRepository.save(order);
+        log.info("Sipariş güncellendi: No={}, Yeni Toplam={}", updated.getOrderNumber(), updated.getTotalAmount());
+
+        return orderMapper.toResponse(updated);
     }
 
     @Override

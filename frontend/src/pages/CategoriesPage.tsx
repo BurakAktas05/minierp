@@ -1,17 +1,24 @@
-import React, { useState, useEffect } from 'react';
-import { FolderTree, Plus, RefreshCw, Layers } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Plus, RefreshCw, FolderTree, Tag, Layers, Printer } from 'lucide-react';
 import { inventoryApi } from '../api/inventoryApi';
 import { Category, Product } from '../types';
+import { useToast } from '../context/ToastContext';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Dialog } from '../components/ui/dialog';
-import { Card } from '../components/ui/card';
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '../components/ui/table';
+import { ErpToolbar } from '../components/common/ErpToolbar';
+import { ErpDataGrid, Column } from '../components/common/ErpDataGrid';
+import { ErpSummaryBar } from '../components/common/ErpSummaryBar';
 
 export const CategoriesPage: React.FC = () => {
+  const { toast } = useToast();
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+
+  // New Category Dialog
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newCode, setNewCode] = useState('');
   const [newName, setNewName] = useState('');
@@ -26,6 +33,10 @@ export const CategoriesPage: React.FC = () => {
       ]);
       setCategories(catList);
       setProducts(prodList);
+      if (selectedCategory) {
+        const found = catList.find((c) => c.id === selectedCategory.id);
+        setSelectedCategory(found || null);
+      }
     } catch (err) {
       console.error('Kategoriler yüklenirken hata:', err);
     } finally {
@@ -40,6 +51,7 @@ export const CategoriesPage: React.FC = () => {
   const handleCreateCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCode || !newName) return;
+
     try {
       await inventoryApi.createCategory({
         code: newCode.toUpperCase(),
@@ -50,77 +62,130 @@ export const CategoriesPage: React.FC = () => {
       setNewCode('');
       setNewName('');
       setNewDescription('');
+      toast.success('Yeni kategori başarıyla eklendi.');
       await loadData();
     } catch (err: any) {
-      alert('Kategori eklenirken hata: ' + (err.message || 'Bilinmeyen hata'));
+      toast.error('Kategori eklenirken hata: ' + (err.response?.data?.message || err.message));
     }
   };
 
+  // Filtered categories
+  const filteredCategories = useMemo(() => {
+    return categories.filter((cat) => {
+      if (searchTerm) {
+        const term = searchTerm.toLowerCase();
+        return (
+          cat.code.toLowerCase().includes(term) ||
+          cat.name.toLowerCase().includes(term) ||
+          (cat.description && cat.description.toLowerCase().includes(term))
+        );
+      }
+      return true;
+    });
+  }, [categories, searchTerm]);
+
+  // Columns definition for ErpDataGrid
+  const columns: Column<Category>[] = [
+    {
+      id: 'code',
+      header: 'Kategori Kodu',
+      width: '180px',
+      accessor: (cat) => (
+        <span className="font-mono font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+          {cat.code}
+        </span>
+      ),
+    },
+    {
+      id: 'name',
+      header: 'Kategori Adı',
+      width: '240px',
+      accessor: (cat) => <span className="font-semibold text-slate-800">{cat.name}</span>,
+    },
+    {
+      id: 'description',
+      header: 'Açıklama / Notlar',
+      accessor: (cat) => <span className="text-slate-600">{cat.description || '-'}</span>,
+    },
+    {
+      id: 'productCount',
+      header: 'Bağlı Ürün Sayısı',
+      width: '150px',
+      align: 'right',
+      accessor: (cat) => {
+        const count = products.filter((p) => p.categoryId === cat.id).length;
+        return (
+          <span className="font-mono text-xs font-semibold bg-blue-50 text-blue-800 px-2 py-0.5 rounded border border-blue-200">
+            {count} Ürün
+          </span>
+        );
+      },
+    },
+  ];
+
+  const totalAssignedProducts = useMemo(() => {
+    return categories.reduce((sum, cat) => {
+      const count = products.filter((p) => p.categoryId === cat.id).length;
+      return sum + count;
+    }, 0);
+  }, [categories, products]);
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">Kategori Yönetimi</h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Ürün grupları, ana ve alt kategori hiyerarşisi
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={loadData}>
-            <RefreshCw className="w-3.5 h-3.5" />
-            <span>Yenile</span>
-          </Button>
-          <Button variant="primary" size="sm" onClick={() => setIsModalOpen(true)}>
-            <Plus className="w-3.5 h-3.5" />
-            <span>Yeni Kategori Ekle</span>
-          </Button>
-        </div>
-      </div>
+    <div className="space-y-0 select-none">
+      {/* 1. DİA ERP Toolbar */}
+      <ErpToolbar
+        title="Malzeme & Ürün Grupları"
+        subtitle="Stok Kategori ve Hiyerarşi Yönetimi"
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder="Kategori kodu veya adı ara..."
+        onRefresh={loadData}
+        actions={[
+          {
+            label: 'Yeni Kategori Ekle',
+            icon: <Plus className="w-3.5 h-3.5 text-white" />,
+            onClick: () => setIsModalOpen(true),
+            variant: 'primary',
+          },
+          {
+            label: 'Yazdır',
+            icon: <Printer className="w-3.5 h-3.5 text-slate-600" />,
+            onClick: () => window.print(),
+          },
+        ]}
+      />
 
-      {/* Categories Table */}
-      <Card>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Kategori Kodu</TableHead>
-              <TableHead>Kategori Adı</TableHead>
-              <TableHead>Açıklama</TableHead>
-              <TableHead className="text-right">Bağlı Ürün Sayısı</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {categories.map((cat) => {
-              const productCount = products.filter((p) => p.categoryId === cat.id).length;
-              return (
-                <TableRow key={cat.id}>
-                  <TableCell className="font-mono text-xs font-semibold text-slate-900">
-                    {cat.code}
-                  </TableCell>
-                  <TableCell className="text-xs font-semibold text-slate-800">
-                    {cat.name}
-                  </TableCell>
-                  <TableCell className="text-xs text-slate-500">
-                    {cat.description || '-'}
-                  </TableCell>
-                  <TableCell className="text-right font-mono text-xs">
-                    <span className="inline-block px-2 py-0.5 rounded bg-slate-100 text-slate-800 font-semibold border border-slate-200">
-                      {productCount} Ürün
-                    </span>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </Card>
+      {/* 2. DİA ERP Veri Izgarası (Data Grid) */}
+      <ErpDataGrid
+        data={filteredCategories}
+        columns={columns}
+        keyExtractor={(cat) => cat.id}
+        selectedId={selectedCategory?.id}
+        onSelectRow={(cat) => setSelectedCategory(cat)}
+        loading={loading}
+        emptyMessage="Tanımlı kategori bulunamadı."
+      />
 
-      {/* Create Category Modal */}
+      {/* 3. DİA ERP Dip Toplam Çubuğu */}
+      <ErpSummaryBar
+        totalCount={filteredCategories.length}
+        selectedText={
+          selectedCategory
+            ? `Seçili Kategori: ${selectedCategory.code} - ${selectedCategory.name}`
+            : undefined
+        }
+        metrics={[
+          { label: 'Toplam Kategori', value: `${categories.length} Tanım` },
+          { label: 'Kategorize Edilmiş Ürünler', value: `${totalAssignedProducts} Ürün`, highlight: 'success' },
+        ]}
+      />
+
+      {/* MODAL: Yeni Kategori Ekleme */}
       <Dialog
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title="Yeni Kategori Oluştur"
-        description="Ürünlerin gruplanması ve stok raporlaması için kategori tanımlayınız."
+        title="Yeni Malzeme Kategorisi Tanımla"
+        description="Ürünlerin gruplanması ve stok raporlaması için kategori kartı açınız."
         maxWidth="md"
       >
         <form onSubmit={handleCreateCategory} className="space-y-4">
@@ -128,23 +193,23 @@ export const CategoriesPage: React.FC = () => {
             label="Kategori Kodu"
             value={newCode}
             onChange={(e) => setNewCode(e.target.value.toUpperCase())}
-            placeholder="Örn: KAT-AKSESUAR"
+            placeholder="Örn: KAT-GIYIM"
             required
           />
           <Input
             label="Kategori Adı"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
-            placeholder="Örn: Aksesuar & Kemer"
+            placeholder="Örn: Tekstil & Giyim"
             required
           />
           <Input
             label="Açıklama"
             value={newDescription}
             onChange={(e) => setNewDescription(e.target.value)}
-            placeholder="Kategori kapsamı..."
+            placeholder="Kategori kapsamı ve grup detayları..."
           />
-          <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+          <div className="flex justify-end gap-2 pt-3 border-t border-slate-200">
             <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
               Vazgeç
             </Button>

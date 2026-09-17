@@ -1,73 +1,138 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   FileSpreadsheet,
   Plus,
   Search,
   RefreshCw,
-  ArrowRight,
+  Send,
   CheckCircle2,
   XCircle,
-  Send,
   ShoppingCart,
-  ChevronDown,
-  ChevronRight,
+  Printer,
+  Eye,
+  Trash2,
 } from 'lucide-react';
 import { quotationApi } from '../api/quotationApi';
 import { orderApi } from '../api/orderApi';
 import { partnerApi } from '../api/partnerApi';
 import { inventoryApi } from '../api/inventoryApi';
+import { useToast } from '../context/ToastContext';
 import {
   Quotation,
   QuotationType,
   QuotationStatus,
   BusinessPartner,
   Product,
-  CreateQuotationRequest,
 } from '../types';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-import { Tabs } from '../components/ui/tabs';
 import { Dialog } from '../components/ui/dialog';
-import { Card } from '../components/ui/card';
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '../components/ui/table';
 import { StatusBadge } from '../components/common/StatusBadge';
+import { ErpToolbar } from '../components/common/ErpToolbar';
+import { ErpDataGrid, Column } from '../components/common/ErpDataGrid';
+import { ErpSummaryBar } from '../components/common/ErpSummaryBar';
+
+const formatCurrency = (amount: number = 0) => {
+  return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(amount);
+};
+
+const formatDate = (dateStr?: string) => {
+  if (!dateStr) return '-';
+  try {
+    return new Date(dateStr).toLocaleDateString('tr-TR', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+  } catch {
+    return dateStr;
+  }
+};
 
 export const QuotationsPage: React.FC = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [partners, setPartners] = useState<BusinessPartner[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<string>('ALL');
+  const [activeTab, setActiveTab] = useState<'ALL' | 'SALES' | 'PURCHASE' | 'ACCEPTED' | 'DRAFT'>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
-  const [expandedQuotes, setExpandedQuotes] = useState<Record<number, boolean>>({});
+  const [selectedQuote, setSelectedQuote] = useState<Quotation | null>(null);
 
-  // Create Modal State
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedPartnerId, setSelectedPartnerId] = useState<number>(1);
+  // Modals
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+
+  // Create form state
+  interface FormItem {
+    variantId: number;
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    discountRate: number;
+    taxRate: number;
+  }
+
   const [quoteType, setQuoteType] = useState<QuotationType>('SALES');
-  const [validUntil, setValidUntil] = useState('2026-04-15');
+  const [selectedPartnerId, setSelectedPartnerId] = useState<number>(0);
+  const [validUntil, setValidUntil] = useState('');
   const [notes, setNotes] = useState('');
-  const [items, setItems] = useState<
-    Array<{ variantId: number; quantity: number; unitPrice: number; taxRate: number }>
-  >([
-    { variantId: 102, quantity: 50, unitPrice: 450, taxRate: 10 },
+  const [items, setItems] = useState<FormItem[]>([
+    { variantId: 0, description: '', quantity: 1, unitPrice: 0, discountRate: 0, taxRate: 20 },
   ]);
+
+  const allVariants = useMemo(() => {
+    const list: Array<{
+      id: number;
+      productId: number;
+      productName: string;
+      productCode: string;
+      sku: string;
+      variantName: string;
+      salePrice: number;
+      purchasePrice: number;
+      taxRate: number;
+      availableStock: number;
+    }> = [];
+    products.forEach((p) => {
+      (p.variants || []).forEach((v) => {
+        list.push({
+          id: v.id,
+          productId: p.id,
+          productName: p.name,
+          productCode: p.code,
+          sku: v.sku,
+          variantName: v.variantName || v.sku,
+          salePrice: Number(v.salePrice ?? p.basePrice ?? 0),
+          purchasePrice: Number(v.purchasePrice ?? 0),
+          taxRate: Number(p.taxRate ?? 20),
+          availableStock: Number(v.availableStock ?? 0),
+        });
+      });
+    });
+    return list;
+  }, [products]);
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const typeParam = activeTab === 'ALL' ? undefined : (activeTab as QuotationType);
-      const [qList, pList, prodList] = await Promise.all([
-        quotationApi.getQuotations(typeParam),
+      const [quoteList, partList, prodList] = await Promise.all([
+        quotationApi.getQuotations(),
         partnerApi.getPartners(),
         inventoryApi.getProducts(),
       ]);
-      setQuotations(qList);
-      setPartners(pList);
+      setQuotations(quoteList);
+      setPartners(partList);
       setProducts(prodList);
-      if (pList.length > 0) setSelectedPartnerId(pList[0].id);
+      if (partList.length > 0 && selectedPartnerId === 0) {
+        setSelectedPartnerId(partList[0].id);
+      }
+      if (selectedQuote) {
+        const found = quoteList.find((q) => q.id === selectedQuote.id);
+        setSelectedQuote(found || null);
+      }
     } catch (err) {
       console.error('Teklifler yüklenirken hata:', err);
     } finally {
@@ -77,445 +142,737 @@ export const QuotationsPage: React.FC = () => {
 
   useEffect(() => {
     loadData();
-  }, [activeTab]);
+  }, []);
 
-  const toggleExpand = (id: number) => {
-    setExpandedQuotes((prev) => ({ ...prev, [id]: !prev[id] }));
+  // İlk yüklemede veya modal açıldığında ilk geçerli varyantı ata
+  useEffect(() => {
+    if (allVariants.length > 0 && items.length === 1 && items[0].variantId === 0) {
+      const v = allVariants[0];
+      setItems([
+        {
+          variantId: v.id,
+          description: `${v.productName} - ${v.variantName}`,
+          quantity: 1,
+          unitPrice: quoteType === 'SALES' ? v.salePrice : v.purchasePrice,
+          discountRate: 0,
+          taxRate: v.taxRate,
+        },
+      ]);
+    }
+  }, [allVariants, quoteType]);
+
+  const handleVariantSelect = (index: number, variantId: number) => {
+    const selected = allVariants.find((v) => v.id === variantId);
+    const copy = [...items];
+    if (selected) {
+      copy[index] = {
+        ...copy[index],
+        variantId: selected.id,
+        description: `${selected.productName} - ${selected.variantName}`,
+        unitPrice: quoteType === 'SALES' ? selected.salePrice : selected.purchasePrice,
+        taxRate: selected.taxRate,
+      };
+    } else {
+      copy[index] = { ...copy[index], variantId };
+    }
+    setItems(copy);
   };
 
-  // Status progression action
-  const handleUpdateStatus = async (id: number, status: QuotationStatus) => {
-    try {
-      await quotationApi.updateStatus(id, status);
-      await loadData();
-    } catch (err: any) {
-      alert('Durum güncellenirken hata: ' + (err.message || 'Hata'));
-    }
-  };
-
-  // User requirement: Manual Conversion to Order
-  const handleConvertToOrder = async (quotationId: number) => {
-    if (!window.confirm('Bu teklifi resmi siparişe dönüştürmek istediğinize emin misiniz?')) {
-      return;
-    }
-    try {
-      await orderApi.createOrderFromQuotation(quotationId);
-      alert('Teklif başarıyla resmi siparişe aktarıldı. Siparişler sayfasına yönlendiriliyorsunuz.');
-      navigate('/orders');
-    } catch (err: any) {
-      alert('Siparişe dönüştürülürken hata: ' + (err.message || 'Hata'));
-    }
-  };
-
-  // Flattened variants for item selection
-  const allVariants: Array<{ id: number; label: string; price: number }> = [];
-  products.forEach((p) => {
-    p.variants.forEach((v) => {
-      allVariants.push({
-        id: v.id,
-        label: `${p.name} - ${v.sku} (${v.size || ''} ${v.color || ''})`,
-        price: p.basePrice + (v.priceAdjustment || 0),
-      });
-    });
-  });
-
-  const addItemRow = () => {
-    const defaultVar = allVariants[0];
+  const handleAddItem = () => {
+    const v = allVariants[0];
     setItems([
       ...items,
-      { variantId: defaultVar ? defaultVar.id : 101, quantity: 10, unitPrice: defaultVar ? defaultVar.price : 100, taxRate: 10 },
+      {
+        variantId: v ? v.id : 0,
+        description: v ? `${v.productName} - ${v.variantName}` : '',
+        quantity: 1,
+        unitPrice: v ? (quoteType === 'SALES' ? v.salePrice : v.purchasePrice) : 0,
+        discountRate: 0,
+        taxRate: v ? v.taxRate : 20,
+      },
     ]);
   };
 
-  const handleCreateQuotation = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (items.length === 0) {
-      alert('Lütfen en az bir teklif kalemi ekleyiniz.');
+  const handleRemoveItem = (index: number) => {
+    if (items.length <= 1) {
+      toast.warning('Teklifte en az bir kalem bulunmalıdır.');
       return;
     }
+    setItems(items.filter((_, idx) => idx !== index));
+  };
 
-    const payload: CreateQuotationRequest = {
-      partnerId: Number(selectedPartnerId),
-      type: quoteType,
-      validUntil,
-      notes,
-      items: items.map((it) => ({
-        variantId: Number(it.variantId),
-        quantity: Number(it.quantity),
-        unitPrice: Number(it.unitPrice),
-        taxRate: Number(it.taxRate),
-      })),
-    };
+  const handleItemChange = (index: number, field: keyof FormItem, value: any) => {
+    const copy = [...items];
+    copy[index] = { ...copy[index], [field]: value };
+    setItems(copy);
+  };
 
+  const quoteTotals = useMemo(() => {
+    let subtotal = 0;
+    let totalDiscount = 0;
+    let totalTax = 0;
+
+    items.forEach((it) => {
+      const gross = (Number(it.quantity) || 0) * (Number(it.unitPrice) || 0);
+      const disc = (gross * (Number(it.discountRate) || 0)) / 100;
+      const net = gross - disc;
+      const tax = (net * (Number(it.taxRate) || 0)) / 100;
+
+      subtotal += gross;
+      totalDiscount += disc;
+      totalTax += tax;
+    });
+
+    const grandTotal = subtotal - totalDiscount + totalTax;
+    return { subtotal, totalDiscount, totalTax, grandTotal };
+  }, [items]);
+
+  // Durum Güncelle
+  const handleUpdateStatus = async (status: QuotationStatus) => {
+    if (!selectedQuote) return;
     try {
-      await quotationApi.createQuotation(payload);
-      setIsModalOpen(false);
+      await quotationApi.updateStatus(selectedQuote.id, status);
+      toast.success(`Teklif durumu güncellendi: ${status}`);
       await loadData();
     } catch (err: any) {
-      alert('Teklif oluşturulurken hata: ' + (err.message || 'Hata'));
+      toast.error('Durum güncellenirken hata: ' + (err.response?.data?.message || err.message));
     }
   };
 
-  const filteredQuotes = quotations.filter(
-    (q) =>
-      q.quotationNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (q.partnerTitle && q.partnerTitle.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  // Tekliften Siparişe Dönüştür
+  const handleConvertToOrder = async () => {
+    if (!selectedQuote) return;
+    if (selectedQuote.status !== 'ACCEPTED') {
+      toast.warning('Yalnızca MÜŞTERİ TARAFINDAN KABUL EDİLEN (ACCEPTED) teklifler resmi siparişe dönüştürülebilir.');
+      return;
+    }
+
+    try {
+      await orderApi.createOrderFromQuotation(selectedQuote.id);
+      toast.success('Teklif başarıyla resmi siparişe dönüştürüldü.');
+      navigate('/orders');
+    } catch (err: any) {
+      toast.error('Siparişe dönüştürülürken hata: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
+  // Yeni Teklif Kaydet
+  const handleCreateQuotation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedPartnerId) {
+      toast.warning('Lütfen bir cari hesap seçiniz.');
+      return;
+    }
+
+    if (items.some((it) => !it.variantId || it.variantId === 0)) {
+      toast.warning('Lütfen tüm kalemler için geçerli bir ürün/varyant seçiniz.');
+      return;
+    }
+
+    try {
+      await quotationApi.createQuotation({
+        type: quoteType,
+        partnerId: selectedPartnerId,
+        validUntil: validUntil || undefined,
+        notes: notes || undefined,
+        items: items.map((it) => ({
+          variantId: it.variantId,
+          quantity: Number(it.quantity),
+          unitPrice: Number(it.unitPrice),
+          discountRate: Number(it.discountRate || 0),
+          taxRate: Number(it.taxRate || 20),
+          description: it.description || undefined,
+        })),
+      });
+
+      toast.success('Teklif başarıyla oluşturuldu.');
+      setCreateModalOpen(false);
+      setNotes('');
+      // Formu sıfırla
+      if (allVariants.length > 0) {
+        const v = allVariants[0];
+        setItems([
+          {
+            variantId: v.id,
+            description: `${v.productName} - ${v.variantName}`,
+            quantity: 1,
+            unitPrice: quoteType === 'SALES' ? v.salePrice : v.purchasePrice,
+            discountRate: 0,
+            taxRate: v.taxRate,
+          },
+        ]);
+      }
+      await loadData();
+    } catch (err: any) {
+      toast.error('Teklif oluşturulurken hata: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
+  // Filtered quotations
+  const filteredQuotes = useMemo(() => {
+    return quotations.filter((q) => {
+      if (activeTab === 'SALES' && q.type !== 'SALES') return false;
+      if (activeTab === 'PURCHASE' && q.type !== 'PURCHASE') return false;
+      if (activeTab === 'ACCEPTED' && q.status !== 'ACCEPTED') return false;
+      if (activeTab === 'DRAFT' && q.status !== 'DRAFT') return false;
+
+      if (searchTerm) {
+        const term = searchTerm.toLowerCase();
+        return (
+          q.quotationNumber.toLowerCase().includes(term) ||
+          (q.partnerTitle && q.partnerTitle.toLowerCase().includes(term)) ||
+          (q.notes && q.notes.toLowerCase().includes(term))
+        );
+      }
+      return true;
+    });
+  }, [quotations, activeTab, searchTerm]);
+
+  // Totals
+  const totalAmountSum = useMemo(() => {
+    return filteredQuotes.reduce((sum, q) => sum + (q.totalAmount || 0), 0);
+  }, [filteredQuotes]);
+
+  const acceptedAmountSum = useMemo(() => {
+    return filteredQuotes
+      .filter((q) => q.status === 'ACCEPTED')
+      .reduce((sum, q) => sum + (q.totalAmount || 0), 0);
+  }, [filteredQuotes]);
+
+  // DataGrid Columns Definition
+  const columns: Column<Quotation>[] = [
+    {
+      id: 'quotationNumber',
+      header: 'Teklif No',
+      width: '160px',
+      accessor: (q) => (
+        <span className="font-mono font-bold text-slate-900">{q.quotationNumber}</span>
+      ),
+    },
+    {
+      id: 'issueDate',
+      header: 'Teklif Tarihi',
+      width: '110px',
+      accessor: (q) => <span className="font-mono text-slate-600">{formatDate(q.issueDate)}</span>,
+    },
+    {
+      id: 'validUntil',
+      header: 'Geçerlilik',
+      width: '110px',
+      accessor: (q) => <span className="font-mono text-slate-600">{formatDate(q.validUntil)}</span>,
+    },
+    {
+      id: 'type',
+      header: 'Teklif Türü',
+      width: '120px',
+      accessor: (q) => (
+        <span
+          className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold border ${
+            q.type === 'SALES'
+              ? 'bg-blue-50 text-blue-700 border-blue-200'
+              : 'bg-purple-50 text-purple-700 border-purple-200'
+          }`}
+        >
+          {q.type === 'SALES' ? 'Satış Teklifi' : 'Alış Teklifi'}
+        </span>
+      ),
+    },
+    {
+      id: 'partner',
+      header: 'Cari Hesap Unvanı',
+      accessor: (q) => (
+        <span className="font-medium text-slate-900 truncate block max-w-xs">
+          {q.partnerTitle || 'Cari Hesap'}
+        </span>
+      ),
+    },
+    {
+      id: 'itemCount',
+      header: 'Kalem',
+      align: 'center',
+      width: '80px',
+      accessor: (q) => (
+        <span className="font-mono text-slate-700 font-semibold">
+          {q.items ? q.items.length : 0} adet
+        </span>
+      ),
+    },
+    {
+      id: 'totalAmount',
+      header: 'Genel Toplam',
+      align: 'right',
+      width: '130px',
+      accessor: (q) => (
+        <span className="font-bold font-mono text-slate-900">{formatCurrency(q.totalAmount)}</span>
+      ),
+    },
+    {
+      id: 'status',
+      header: 'Teklif Durumu',
+      align: 'center',
+      width: '120px',
+      accessor: (q) => <StatusBadge status={q.status} />,
+    },
+  ];
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">B2B Teklif Yönetimi</h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Alış ve satış teklifleri, onay takibi ve manuel siparişe dönüştürme döngüsü
-          </p>
+    <div className="space-y-0 select-none">
+      {/* 1. DİA ERP Toolbar */}
+      <ErpToolbar
+        title="B2B Teklif Yönetimi"
+        subtitle="Müşteri & Tedarikçi Fiyat Teklifleri"
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder="Teklif no veya cari unvanı ile ara..."
+        onRefresh={loadData}
+        actions={[
+          {
+            label: 'Yeni Teklif',
+            icon: <Plus className="w-3.5 h-3.5 text-white" />,
+            onClick: () => setCreateModalOpen(true),
+            variant: 'primary',
+          },
+          {
+            label: 'Siparişe Dönüştür',
+            icon: <ShoppingCart className="w-3.5 h-3.5 text-emerald-600" />,
+            onClick: handleConvertToOrder,
+            disabled: !selectedQuote || selectedQuote.status !== 'ACCEPTED',
+            title: 'Kabul edilen teklifi resmi siparişe dönüştürür',
+          },
+          {
+            label: 'Kabul Et',
+            icon: <CheckCircle2 className="w-3.5 h-3.5 text-blue-600" />,
+            onClick: () => handleUpdateStatus('ACCEPTED'),
+            disabled: !selectedQuote || (selectedQuote.status !== 'DRAFT' && selectedQuote.status !== 'SENT'),
+          },
+          {
+            label: 'Gönder (SENT)',
+            icon: <Send className="w-3.5 h-3.5 text-amber-600" />,
+            onClick: () => handleUpdateStatus('SENT'),
+            disabled: !selectedQuote || selectedQuote.status !== 'DRAFT',
+          },
+          {
+            label: 'Reddet',
+            icon: <XCircle className="w-3.5 h-3.5 text-rose-600" />,
+            onClick: () => handleUpdateStatus('REJECTED'),
+            disabled: !selectedQuote || selectedQuote.status === 'CONVERTED' || selectedQuote.status === 'REJECTED',
+          },
+          {
+            label: 'İncele / Detay',
+            icon: <Eye className="w-3.5 h-3.5 text-slate-700" />,
+            onClick: () => {
+              if (!selectedQuote) {
+                toast.warning('Lütfen incelemek istediğiniz teklifi seçiniz.');
+                return;
+              }
+              setDetailModalOpen(true);
+            },
+            disabled: !selectedQuote,
+          },
+          {
+            label: 'Yazdır',
+            icon: <Printer className="w-3.5 h-3.5 text-slate-600" />,
+            onClick: () => window.print(),
+          },
+        ]}
+      >
+        {/* Quick Filter Tabs */}
+        <div className="flex items-center gap-1 text-xs">
+          {[
+            { id: 'ALL', label: 'Tümü' },
+            { id: 'SALES', label: 'Satış' },
+            { id: 'PURCHASE', label: 'Alış' },
+            { id: 'ACCEPTED', label: 'Kabul Edilenler' },
+            { id: 'DRAFT', label: 'Taslaklar' },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`px-2 py-1 rounded text-xs transition-colors cursor-pointer ${
+                activeTab === tab.id
+                  ? 'bg-slate-800 text-white font-semibold'
+                  : 'bg-white hover:bg-slate-200 text-slate-700 border border-slate-300'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={loadData}>
-            <RefreshCw className="w-3.5 h-3.5" />
-            <span>Yenile</span>
-          </Button>
-          <Button variant="primary" size="sm" onClick={() => setIsModalOpen(true)}>
-            <Plus className="w-3.5 h-3.5" />
-            <span>Yeni Teklif Hazırla</span>
-          </Button>
-        </div>
-      </div>
+      </ErpToolbar>
 
-      {/* Tabs and Search */}
-      <Card className="p-4 space-y-4">
-        <Tabs
-          tabs={[
-            { id: 'ALL', label: 'Tüm Teklifler', count: quotations.length },
-            { id: 'SALES', label: 'Satış Teklifleri' },
-            { id: 'PURCHASE', label: 'Alış Teklifleri' },
-          ]}
-          activeTab={activeTab}
-          onChange={setActiveTab}
-        />
+      {/* 2. DİA ERP Veri Izgarası (Data Grid) */}
+      <ErpDataGrid
+        data={filteredQuotes}
+        columns={columns}
+        keyExtractor={(q) => q.id}
+        selectedId={selectedQuote?.id}
+        onSelectRow={(q) => setSelectedQuote(q)}
+        onDoubleClickRow={(q) => {
+          setSelectedQuote(q);
+          setDetailModalOpen(true);
+        }}
+        loading={loading}
+        emptyMessage="Teklif kaydı bulunamadı."
+      />
 
-        <div className="relative">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-          <Input
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Teklif numarası (QT-...) veya müşteri/tedarikçi unvanı ara..."
-            className="pl-9 text-xs"
-          />
-        </div>
-      </Card>
+      {/* 3. DİA ERP Dip Toplam Çubuğu */}
+      <ErpSummaryBar
+        totalCount={filteredQuotes.length}
+        selectedText={
+          selectedQuote
+            ? `Seçili Teklif: ${selectedQuote.quotationNumber} (${selectedQuote.partnerTitle || ''})`
+            : undefined
+        }
+        metrics={[
+          { label: 'Teklif Toplamı', value: formatCurrency(totalAmountSum) },
+          { label: 'Kabul Edilen', value: formatCurrency(acceptedAmountSum), highlight: 'success' },
+        ]}
+      />
 
-      {/* Quotations List */}
-      <div className="space-y-3">
-        {filteredQuotes.map((q) => {
-          const isExpanded = !!expandedQuotes[q.id];
-          return (
-            <Card key={q.id} className="border border-slate-200 overflow-hidden">
-              <div
-                onClick={() => toggleExpand(q.id)}
-                className="p-4 bg-white hover:bg-slate-50/70 cursor-pointer flex flex-col md:flex-row md:items-center justify-between gap-4 transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <button className="text-slate-400 hover:text-slate-700">
-                    {isExpanded ? (
-                      <ChevronDown className="w-4 h-4 text-slate-900" />
-                    ) : (
-                      <ChevronRight className="w-4 h-4" />
-                    )}
-                  </button>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-                        {q.quotationNumber}
-                      </span>
-                      <span className="text-xs font-bold text-slate-800">
-                        {q.partnerTitle || 'Cari Hesap'}
-                      </span>
-                      <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded border border-slate-200 text-slate-600 bg-slate-50">
-                        {q.type === 'SALES' ? 'Satış' : 'Alış'}
-                      </span>
-                      <StatusBadge status={q.status} />
-                    </div>
-                    <div className="flex items-center gap-4 text-xs text-slate-500 mt-1">
-                      <span>Tarih: {new Date(q.issueDate).toLocaleDateString('tr-TR')}</span>
-                      {q.validUntil && (
-                        <span>Geçerlilik: {new Date(q.validUntil).toLocaleDateString('tr-TR')}</span>
-                      )}
-                      <span>{q.items.length} Kalem</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Right side: Amount and Workflow Actions */}
-                <div className="flex items-center gap-4 self-end md:self-center">
-                  <div className="text-right">
-                    <p className="text-[10px] text-slate-400 uppercase font-bold">Toplam Tutar</p>
-                    <p className="font-mono text-sm font-bold text-slate-900">
-                      ₺{q.totalAmount.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
-                    </p>
-                  </div>
-
-                  {/* Contextual Action Buttons */}
-                  <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                    {q.status === 'DRAFT' && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-xs h-8"
-                        onClick={() => handleUpdateStatus(q.id, 'SENT')}
-                      >
-                        <Send className="w-3 h-3 text-slate-600" />
-                        <span>Müşteriye Gönder</span>
-                      </Button>
-                    )}
-
-                    {q.status === 'SENT' && (
-                      <>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-xs h-8 text-emerald-700 border-emerald-300 bg-emerald-50/50"
-                          onClick={() => handleUpdateStatus(q.id, 'ACCEPTED')}
-                        >
-                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                          <span>Kabul Edildi</span>
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-xs h-8 text-rose-700 border-rose-300 bg-rose-50/50"
-                          onClick={() => handleUpdateStatus(q.id, 'REJECTED')}
-                        >
-                          <XCircle className="w-3 h-3 text-rose-600" />
-                          <span>Reddedildi</span>
-                        </Button>
-                      </>
-                    )}
-
-                    {/* USER RULE: Explicit Manual Conversion Button! */}
-                    {q.status === 'ACCEPTED' && (
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        className="text-xs h-8 bg-slate-900"
-                        onClick={() => handleConvertToOrder(q.id)}
-                      >
-                        <ShoppingCart className="w-3 h-3" />
-                        <span>Siparişe Dönüştür</span>
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Expandable Line Items Table */}
-              {isExpanded && (
-                <div className="p-4 bg-slate-50 border-t border-slate-200">
-                  <p className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
-                    Teklif Kalemleri
-                  </p>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Ürün & Varyant</TableHead>
-                        <TableHead className="text-right">Miktar</TableHead>
-                        <TableHead className="text-right">Birim Fiyat</TableHead>
-                        <TableHead className="text-right">KDV</TableHead>
-                        <TableHead className="text-right">Satır Tutarı</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {q.items.map((item, idx) => (
-                        <TableRow key={idx} className="bg-white">
-                          <TableCell className="text-xs font-semibold text-slate-800">
-                            {item.productName || item.variantSku || `Varyant #${item.variantId}`}
-                          </TableCell>
-                          <TableCell className="text-right font-mono text-xs">
-                            {item.quantity} Adet
-                          </TableCell>
-                          <TableCell className="text-right font-mono text-xs">
-                            ₺{item.unitPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
-                          </TableCell>
-                          <TableCell className="text-right font-mono text-xs text-slate-500">
-                            %{item.taxRate}
-                          </TableCell>
-                          <TableCell className="text-right font-mono text-xs font-bold text-slate-900">
-                            ₺
-                            {(
-                              item.quantity * item.unitPrice * (1 + item.taxRate / 100)
-                            ).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                  {q.notes && (
-                    <p className="mt-3 text-xs text-slate-500 italic bg-white p-2.5 rounded border border-slate-200">
-                      Not: {q.notes}
-                    </p>
-                  )}
-                </div>
-              )}
-            </Card>
-          );
-        })}
-
-        {filteredQuotes.length === 0 && !loading && (
-          <div className="text-center py-12 bg-white rounded-lg border border-slate-200">
-            <FileSpreadsheet className="w-8 h-8 mx-auto text-slate-400 mb-2" />
-            <p className="text-sm font-semibold text-slate-700">Teklif kaydı bulunamadı</p>
-            <p className="text-xs text-slate-400 mt-1">Yeni bir alış veya satış teklifi hazırlayabilirsiniz.</p>
-          </div>
-        )}
-      </div>
-
-      {/* Create Quotation Modal */}
+      {/* MODAL 1: Teklif Kalemleri Detay Penceresi */}
       <Dialog
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title="Yeni B2B Teklif Hazırla"
-        description="Müşteri veya tedarikçi için kalem bazlı resmi teklif dokümanı oluşturun."
+        isOpen={detailModalOpen}
+        onClose={() => setDetailModalOpen(false)}
+        title={`Teklif İnceleme — ${selectedQuote?.quotationNumber || ''}`}
+        description="Fiyat teklifine ait kalemler ve geçerlilik koşulları"
         maxWidth="2xl"
       >
-        <form onSubmit={handleCreateQuotation} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {selectedQuote && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-3 bg-slate-50 border border-slate-200 rounded text-xs">
+              <div>
+                <span className="text-slate-400 block text-[10px]">Cari Hesap:</span>
+                <strong className="text-slate-900 font-semibold">{selectedQuote.partnerTitle}</strong>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[10px]">Teklif Tarihi:</span>
+                <span className="font-mono text-slate-800">{formatDate(selectedQuote.issueDate)}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[10px]">Son Geçerlilik:</span>
+                <span className="font-mono text-slate-800">{formatDate(selectedQuote.validUntil)}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[10px]">Teklif Durumu:</span>
+                <StatusBadge status={selectedQuote.status} />
+              </div>
+            </div>
+
+            {selectedQuote.notes && (
+              <div className="p-2.5 bg-amber-50/60 border border-amber-200 rounded text-xs text-amber-900">
+                <strong>Not:</strong> {selectedQuote.notes}
+              </div>
+            )}
+
+            {/* Kalemler Tablosu */}
             <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                Cari Hesap (Partner)
-              </label>
+              <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wide mb-1.5">
+                Teklif Kalemleri ({selectedQuote.items?.length || 0})
+              </h4>
+              <div className="border border-slate-200 rounded overflow-hidden">
+                <table className="w-full text-xs text-left border-collapse">
+                  <thead className="bg-slate-100 text-slate-700 border-b border-slate-200">
+                    <tr>
+                      <th className="p-2 border-r border-slate-200">Ürün / Varyant</th>
+                      <th className="p-2 text-right border-r border-slate-200">Miktar</th>
+                      <th className="p-2 text-right border-r border-slate-200">Birim Fiyat</th>
+                      <th className="p-2 text-right border-r border-slate-200">KDV</th>
+                      <th className="p-2 text-right">Kalem Toplamı</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {(selectedQuote.items || []).map((item, idx) => (
+                      <tr key={idx} className="hover:bg-slate-50">
+                        <td className="p-2 border-r border-slate-100 font-mono font-bold text-slate-900">
+                          {item.productName || item.variantSku || `Varyant #${item.variantId}`}
+                        </td>
+                        <td className="p-2 text-right font-mono font-bold border-r border-slate-100">
+                          {item.quantity} adet
+                        </td>
+                        <td className="p-2 text-right font-mono border-r border-slate-100">
+                          {formatCurrency(item.unitPrice)}
+                        </td>
+                        <td className="p-2 text-right font-mono border-r border-slate-100">
+                          %{item.taxRate}
+                        </td>
+                        <td className="p-2 text-right font-mono font-bold text-slate-900">
+                          {formatCurrency(item.lineTotal || item.quantity * item.unitPrice)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="flex justify-between items-center pt-2 border-t border-slate-100">
+              {selectedQuote.status === 'ACCEPTED' && (
+                <Button
+                  size="sm"
+                  variant="primary"
+                  onClick={handleConvertToOrder}
+                  className="gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                >
+                  <ShoppingCart className="w-3.5 h-3.5" />
+                  <span>Resmi Siparişe Dönüştür</span>
+                </Button>
+              )}
+              <Button size="sm" variant="outline" onClick={() => setDetailModalOpen(false)} className="ml-auto">
+                Kapat
+              </Button>
+            </div>
+          </div>
+        )}
+      </Dialog>
+
+      {/* MODAL 2: Yeni Teklif Oluşturma Penceresi */}
+      <Dialog
+        isOpen={createModalOpen}
+        onClose={() => setCreateModalOpen(false)}
+        title="Yeni B2B Fiyat Teklifi Düzenle"
+        description="Müşteri veya tedarikçiye ürün/varyant seçimi yaparak resmi teklif mektubu oluşturun"
+        maxWidth="3xl"
+      >
+        <form onSubmit={handleCreateQuotation} className="space-y-4 text-xs">
+          {/* Üst Bilgiler */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-3 bg-slate-50 border border-slate-200 rounded">
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">Teklif Türü</label>
+              <select
+                value={quoteType}
+                onChange={(e) => {
+                  const newT = e.target.value as QuotationType;
+                  setQuoteType(newT);
+                  setItems((prev) =>
+                    prev.map((it) => {
+                      const v = allVariants.find((av) => av.id === it.variantId);
+                      return v
+                        ? { ...it, unitPrice: newT === 'SALES' ? v.salePrice : v.purchasePrice }
+                        : it;
+                    })
+                  );
+                }}
+                className="w-full h-8 text-xs bg-white border border-slate-300 rounded px-2.5 focus:outline-none focus:border-slate-800"
+              >
+                <option value="SALES">Müşteri Satış Teklifi (Satış Fiyatları)</option>
+                <option value="PURCHASE">Tedarikçi Satın Alma Teklifi (Alış Fiyatları)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">Cari Hesap (Müşteri / Tedarikçi)</label>
               <select
                 value={selectedPartnerId}
                 onChange={(e) => setSelectedPartnerId(Number(e.target.value))}
-                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-slate-900"
+                className="w-full h-8 text-xs bg-white border border-slate-300 rounded px-2.5 focus:outline-none focus:border-slate-800"
+                required
               >
                 {partners.map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.title} ({p.code})
+                    {p.code} — {p.title} ({p.type})
                   </option>
                 ))}
               </select>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                Teklif Türü
-              </label>
-              <select
-                value={quoteType}
-                onChange={(e) => setQuoteType(e.target.value as QuotationType)}
-                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-slate-900"
-              >
-                <option value="SALES">Satış Teklifi (Müşteriye)</option>
-                <option value="PURCHASE">Alış Teklifi (Tedarikçiden)</option>
-              </select>
+              <label className="block font-semibold text-slate-700 mb-1">Son Geçerlilik Tarihi</label>
+              <Input
+                type="date"
+                value={validUntil}
+                onChange={(e) => setValidUntil(e.target.value)}
+              />
             </div>
 
-            <Input
-              label="Geçerlilik Tarihi"
-              type="date"
-              value={validUntil}
-              onChange={(e) => setValidUntil(e.target.value)}
-              required
-            />
+            <div className="col-span-full">
+              <label className="block font-semibold text-slate-700 mb-1">Teklif Notu / Şartlar</label>
+              <Input
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Örn: Fiyatlara nakliye dahildir. Ödeme vadesi 30 gündür."
+              />
+            </div>
           </div>
 
-          <Input
-            label="Teklif Notu"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Örn: 2026 İlkbahar mağaza sevkiyatı için toptan satış teklifidir."
-          />
-
-          {/* Dynamic Items Builder */}
-          <div className="rounded-lg border border-slate-200 p-4 bg-slate-50 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                Teklif Kalemleri ({items.length})
-              </span>
-              <button
+          {/* Kalemler Tablosu */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="font-bold text-slate-800 uppercase tracking-wide flex items-center gap-1.5">
+                <span>Teklif Kalemleri ({items.length})</span>
+                <span className="text-[10px] font-normal text-slate-500 lowercase">
+                  (satılacak / alınacak ürün ve varyantları seçiniz)
+                </span>
+              </h4>
+              <Button
                 type="button"
-                onClick={addItemRow}
-                className="text-xs text-slate-700 hover:text-slate-900 font-semibold flex items-center gap-1"
+                size="sm"
+                variant="outline"
+                onClick={handleAddItem}
+                className="gap-1 text-xs text-blue-700 border-blue-200 hover:bg-blue-50"
               >
-                <Plus className="w-3 h-3" /> Kalem Ekle
-              </button>
+                <Plus className="w-3.5 h-3.5" />
+                <span>Kalem Ekle</span>
+              </Button>
             </div>
 
-            <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-              {items.map((it, idx) => (
-                <div key={idx} className="flex gap-2 items-center bg-white p-2 rounded border border-slate-200">
-                  <div className="flex-1">
-                    <select
-                      value={it.variantId}
-                      onChange={(e) => {
-                        const vId = Number(e.target.value);
-                        const found = allVariants.find((v) => v.id === vId);
-                        const updated = [...items];
-                        updated[idx].variantId = vId;
-                        if (found) updated[idx].unitPrice = found.price;
-                        setItems(updated);
-                      }}
-                      className="w-full rounded border border-slate-300 px-2 py-1 text-xs text-slate-900"
-                    >
-                      {allVariants.map((v) => (
-                        <option key={v.id} value={v.id}>
-                          {v.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+            <div className="border border-slate-200 rounded overflow-hidden">
+              <table className="w-full text-xs text-left border-collapse">
+                <thead className="bg-slate-100 text-slate-700 border-b border-slate-200">
+                  <tr>
+                    <th className="p-2 border-r border-slate-200">Ürün & Varyant</th>
+                    <th className="p-2 w-20 text-center border-r border-slate-200">Miktar</th>
+                    <th className="p-2 w-28 text-right border-r border-slate-200">Birim Fiyat</th>
+                    <th className="p-2 w-16 text-center border-r border-slate-200">İsk.%</th>
+                    <th className="p-2 w-16 text-center border-r border-slate-200">KDV%</th>
+                    <th className="p-2 w-28 text-right border-r border-slate-200">Tutar</th>
+                    <th className="p-2 w-10 text-center">Sil</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 bg-white">
+                  {items.map((item, idx) => {
+                    const gross = (Number(item.quantity) || 0) * (Number(item.unitPrice) || 0);
+                    const disc = (gross * (Number(item.discountRate) || 0)) / 100;
+                    const net = gross - disc;
+                    const tax = (net * (Number(item.taxRate) || 0)) / 100;
+                    const lineTotal = net + tax;
 
-                  <div className="w-20">
-                    <Input
-                      type="number"
-                      min="1"
-                      placeholder="Miktar"
-                      value={it.quantity}
-                      onChange={(e) => {
-                        const updated = [...items];
-                        updated[idx].quantity = Number(e.target.value);
-                        setItems(updated);
-                      }}
-                      className="text-xs h-7 py-1"
-                    />
-                  </div>
+                    return (
+                      <tr key={idx} className="hover:bg-slate-50/70">
+                        {/* Ürün & Varyant Seçici */}
+                        <td className="p-2 border-r border-slate-100">
+                          <select
+                            value={item.variantId}
+                            onChange={(e) => handleVariantSelect(idx, Number(e.target.value))}
+                            className="w-full h-8 text-xs bg-white border border-slate-300 rounded px-2 focus:outline-none focus:border-slate-800"
+                            required
+                          >
+                            <option value={0} disabled>
+                              -- Ürün / Varyant Seçiniz --
+                            </option>
+                            {products.map((prod) => (
+                              <optgroup key={prod.id} label={`${prod.name} [${prod.code}]`}>
+                                {(prod.variants || []).map((v) => (
+                                  <option key={v.id} value={v.id}>
+                                    {v.sku} - {v.variantName || v.sku} (Mevcut: {v.availableStock} Adet)
+                                  </option>
+                                ))}
+                              </optgroup>
+                            ))}
+                          </select>
+                          <input
+                            type="text"
+                            value={item.description}
+                            onChange={(e) => handleItemChange(idx, 'description', e.target.value)}
+                            placeholder="Kalem açıklaması (opsiyonel)"
+                            className="w-full mt-1 h-6 text-[11px] px-1.5 border border-slate-200 rounded text-slate-600 focus:outline-none"
+                          />
+                        </td>
 
-                  <div className="w-24">
-                    <Input
-                      type="number"
-                      step="0.01"
-                      placeholder="Fiyat"
-                      value={it.unitPrice}
-                      onChange={(e) => {
-                        const updated = [...items];
-                        updated[idx].unitPrice = Number(e.target.value);
-                        setItems(updated);
-                      }}
-                      className="text-xs h-7 py-1 font-mono"
-                    />
-                  </div>
+                        {/* Miktar */}
+                        <td className="p-2 border-r border-slate-100">
+                          <input
+                            type="number"
+                            min="1"
+                            value={item.quantity}
+                            onChange={(e) => handleItemChange(idx, 'quantity', Number(e.target.value))}
+                            className="w-full h-8 text-center text-xs border border-slate-300 rounded focus:outline-none focus:border-slate-800 font-mono font-bold"
+                            required
+                          />
+                        </td>
 
-                  <button
-                    type="button"
-                    onClick={() => setItems(items.filter((_, i) => i !== idx))}
-                    className="text-xs text-rose-600 hover:text-rose-800 px-2"
-                  >
-                    Sil
-                  </button>
-                </div>
-              ))}
+                        {/* Birim Fiyat */}
+                        <td className="p-2 border-r border-slate-100">
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={item.unitPrice}
+                            onChange={(e) => handleItemChange(idx, 'unitPrice', Number(e.target.value))}
+                            className="w-full h-8 text-right text-xs border border-slate-300 rounded px-1.5 focus:outline-none focus:border-slate-800 font-mono"
+                            required
+                          />
+                        </td>
+
+                        {/* İskonto % */}
+                        <td className="p-2 border-r border-slate-100">
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={item.discountRate}
+                            onChange={(e) => handleItemChange(idx, 'discountRate', Number(e.target.value))}
+                            className="w-full h-8 text-center text-xs border border-slate-300 rounded focus:outline-none focus:border-slate-800 font-mono"
+                          />
+                        </td>
+
+                        {/* KDV % */}
+                        <td className="p-2 border-r border-slate-100">
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={item.taxRate}
+                            onChange={(e) => handleItemChange(idx, 'taxRate', Number(e.target.value))}
+                            className="w-full h-8 text-center text-xs border border-slate-300 rounded focus:outline-none focus:border-slate-800 font-mono"
+                          />
+                        </td>
+
+                        {/* Tutar */}
+                        <td className="p-2 text-right border-r border-slate-100 font-mono font-bold text-slate-900">
+                          {formatCurrency(lineTotal)}
+                        </td>
+
+                        {/* Sil */}
+                        <td className="p-2 text-center">
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveItem(idx)}
+                            disabled={items.length <= 1}
+                            className="text-slate-400 hover:text-rose-600 disabled:opacity-30 transition-colors p-1"
+                            title="Kalemi Sil"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-            <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
-              Vazgeç
-            </Button>
-            <Button type="submit" variant="primary">
-              Teklifi Kaydet (Taslak)
-            </Button>
+          {/* Dip Toplamlar & Kaydet Butonları */}
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 pt-3 border-t border-slate-200">
+            <div className="flex flex-wrap gap-4 text-xs font-mono bg-slate-50 border border-slate-200 px-3 py-2 rounded">
+              <div>
+                <span className="text-slate-500">Ara Toplam: </span>
+                <span className="font-bold text-slate-800">{formatCurrency(quoteTotals.subtotal)}</span>
+              </div>
+              {quoteTotals.totalDiscount > 0 && (
+                <div>
+                  <span className="text-amber-600">İskonto (-): </span>
+                  <span className="font-bold text-amber-700">{formatCurrency(quoteTotals.totalDiscount)}</span>
+                </div>
+              )}
+              <div>
+                <span className="text-slate-500">KDV (+): </span>
+                <span className="font-bold text-slate-800">{formatCurrency(quoteTotals.totalTax)}</span>
+              </div>
+              <div className="border-l border-slate-300 pl-3">
+                <span className="text-slate-700 font-semibold">Genel Toplam: </span>
+                <span className="font-bold text-emerald-700 text-sm">{formatCurrency(quoteTotals.grandTotal)}</span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 self-end">
+              <Button type="button" size="sm" variant="outline" onClick={() => setCreateModalOpen(false)}>
+                Vazgeç
+              </Button>
+              <Button type="submit" size="sm" variant="primary" className="bg-slate-900 hover:bg-slate-800 text-white">
+                Teklifi Kaydet (DRAFT)
+              </Button>
+            </div>
           </div>
         </form>
       </Dialog>

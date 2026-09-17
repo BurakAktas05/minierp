@@ -1,5 +1,25 @@
 import React from 'react';
 
+/**
+ * ============================================================================
+ * MiniERP - Card (Kart Konteyner) Bileşeni
+ * ============================================================================
+ * Kullanım Örneği:
+ * 
+ * <Card>
+ *   <CardHeader>
+ *     <CardTitle>Kart Başlığı</CardTitle>
+ *     <CardDescription>Açıklayıcı alt metin</CardDescription>
+ *   </CardHeader>
+ *   <CardContent>
+ *     {/* İçerik, Tablo veya Form *\/}
+ *   </CardContent>
+ *   <CardFooter>
+ *     <Button>İşlem</Button>
+ *   </CardFooter>
+ * </Card>
+ */
+
 export const Card: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
   children,
   className = '',

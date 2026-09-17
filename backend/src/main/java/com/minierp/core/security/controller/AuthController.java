@@ -43,8 +43,20 @@ public class AuthController {
      */
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
-        // Login sırasında TenantContext'i set et (doğru şemada kullanıcı aransın)
-        TenantContext.setTenantId(request.getTenantId());
+        String targetTenant = request.getTenantId();
+        if (targetTenant == null || targetTenant.isBlank()) {
+            String u = request.getUsername().toLowerCase();
+            if (u.contains("aktas")) {
+                targetTenant = "tenant_aktas";
+            } else if (u.contains("vogue") || u.contains("moda")) {
+                targetTenant = "tenant_moda";
+            } else {
+                targetTenant = "tenant_tekstil";
+            }
+            request.setTenantId(targetTenant);
+        }
+
+        TenantContext.setTenantId(targetTenant);
         try {
             AuthResponse response = authService.login(request);
             return ResponseEntity.ok(response);

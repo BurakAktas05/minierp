@@ -1,63 +1,29 @@
-import { apiClient, apiRequest, mockStore } from './client';
+import { apiClient } from './client';
 import { Waybill, WaybillStatus, WaybillType, CreateWaybillRequest } from '../types';
 
 export const waybillApi = {
   getWaybills: async (type?: WaybillType): Promise<Waybill[]> => {
-    return apiRequest(
-      () => apiClient.get<Waybill[]>('/waybills', { params: { type } }),
-      () => mockStore.getWaybills(type)
-    );
+    const res = await apiClient.get<Waybill[]>('/waybills', { params: { type } });
+    return Array.isArray(res.data) ? res.data : [];
   },
 
   getWaybillById: async (id: number): Promise<Waybill> => {
-    return apiRequest(
-      () => apiClient.get<Waybill>(`/waybills/${id}`),
-      () => {
-        const w = mockStore.getWaybills().find((item) => item.id === id);
-        if (!w) throw new Error('İrsaliye bulunamadı');
-        return w;
-      }
-    );
+    const res = await apiClient.get<Waybill>(`/waybills/${id}`);
+    return res.data;
   },
 
   createWaybill: async (data: CreateWaybillRequest): Promise<Waybill> => {
-    return apiRequest(
-      () => apiClient.post<Waybill>('/waybills', data),
-      () => {
-        const newWaybill: Waybill = {
-          id: Date.now(),
-          waybillNumber: `IRS-2026-000${mockStore.getWaybills().length + 1}`,
-          orderId: data.orderId,
-          partnerId: 1,
-          partnerTitle: 'Cari Hesap',
-          type: 'DISPATCH',
-          status: 'DRAFT',
-          waybillDate: new Date().toISOString(),
-          carrierInfo: data.carrierInfo,
-          trackingNumber: data.trackingNumber,
-          notes: data.notes,
-          items: data.items.map((it) => ({
-            variantId: it.variantId,
-            quantity: it.quantity,
-          })),
-        };
-        mockStore.getWaybills().unshift(newWaybill);
-        return newWaybill;
-      }
-    );
+    const res = await apiClient.post<Waybill>('/waybills', data);
+    return res.data;
   },
 
   createWaybillFromOrder: async (orderId: number): Promise<Waybill> => {
-    return apiRequest(
-      () => apiClient.post<Waybill>(`/waybills/from-order/${orderId}`),
-      () => mockStore.createWaybillFromOrder(orderId)
-    );
+    const res = await apiClient.post<Waybill>(`/waybills/from-order/${orderId}`);
+    return res.data;
   },
 
   updateStatus: async (id: number, status: WaybillStatus): Promise<Waybill> => {
-    return apiRequest(
-      () => apiClient.patch<Waybill>(`/waybills/${id}/status`, null, { params: { status } }),
-      () => mockStore.updateWaybillStatus(id, status)
-    );
+    const res = await apiClient.patch<Waybill>(`/waybills/${id}/status`, null, { params: { status } });
+    return res.data;
   },
 };

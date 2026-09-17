@@ -4,11 +4,25 @@ import { QuotationStatus, OrderStatus, WaybillStatus, PartnerType } from '../../
 
 interface StatusBadgeProps {
   status: QuotationStatus | OrderStatus | WaybillStatus | PartnerType | string;
+  type?: 'success' | 'warning' | 'danger' | 'info' | 'default';
   className?: string;
 }
 
-export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, className = '' }) => {
+export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, type, className = '' }) => {
+  if (type) {
+    const v = type === 'danger' ? 'destructive' : type;
+    return <Badge variant={v as any} className={className}>{status}</Badge>;
+  }
+
   switch (status) {
+    // Inventory Stock Statuses
+    case 'Tükendi':
+      return <Badge variant="destructive" className={className}>Tükendi</Badge>;
+    case 'Kritik':
+      return <Badge variant="warning" className={className}>Kritik</Badge>;
+    case 'Yeterli':
+      return <Badge variant="success" className={className}>Yeterli</Badge>;
+
     // Quotation Statuses
     case 'DRAFT':
       return <Badge variant="default" className={className}>Taslak</Badge>;

@@ -1,5 +1,22 @@
 import React from 'react';
 
+/**
+ * ============================================================================
+ * MiniERP - Input (Metin Girişi) Bileşeni
+ * ============================================================================
+ * Kullanım Örneği:
+ * 
+ * <Input
+ *   label="Ürün Kodu"
+ *   value={code}
+ *   onChange={(e) => setCode(e.target.value)}
+ *   placeholder="Örn: PRD-001"
+ *   helperText="Benzersiz stok kodunu giriniz"
+ *   error={errors.code}
+ *   required
+ * />
+ */
+
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
@@ -14,7 +31,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
       <div className="w-full space-y-1.5">
         {label && (
           <label htmlFor={inputId} className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-            {label}
+            {label} {props.required && <span className="text-red-500">*</span>}
           </label>
         )}
         <input

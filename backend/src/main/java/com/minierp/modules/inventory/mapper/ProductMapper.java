@@ -9,7 +9,7 @@ import org.mapstruct.MappingConstants;
 
 import java.util.List;
 
-@Mapper(componentModel = MappingConstants.ComponentModel.SPRING, uses = {ProductVariantMapper.class})
+@Mapper(componentModel = MappingConstants.ComponentModel.SPRING, uses = {ProductVariantMapper.class}, builder = @org.mapstruct.Builder(disableBuilder = true))
 public interface ProductMapper {
 
     @Mapping(target = "id", ignore = true)

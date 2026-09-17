@@ -28,4 +28,6 @@ public class WaybillItemRequest {
     @Builder.Default
     @DecimalMin(value = "0.0", inclusive = true, message = "Birim fiyat negatif olamaz")
     private BigDecimal unitPrice = BigDecimal.ZERO;
+
+    private String lotNumber;
 }

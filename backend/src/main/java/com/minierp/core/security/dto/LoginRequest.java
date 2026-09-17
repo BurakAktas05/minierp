@@ -23,8 +23,7 @@ public class LoginRequest {
 
     /**
      * Login sırasında hangi kiracıya giriş yapıldığını belirtir.
-     * JWT üretiminde tenantId claim'i olarak kullanılır.
+     * İsteğe bağlıdır; belirtilmezse varsayılan ana kiracı (tenant_tekstil) kullanılır.
      */
-    @NotBlank(message = "Kiracı kimliği (tenantId) boş olamaz")
     private String tenantId;
 }
