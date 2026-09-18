@@ -1,6 +1,7 @@
 import React from 'react';
 import { Database, Activity, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { getTurkishStatusLabel } from '../common/StatusBadge';
 
 /**
  * ============================================================================
@@ -35,7 +36,7 @@ export const Header: React.FC = () => {
         <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded border border-slate-200 font-medium">
           <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
           <span className="font-mono text-slate-900">{user?.username || 'Giriş Yapılmadı'}</span>
-          <span className="text-slate-400">({user?.role ? user.role.replace('ROLE_', '') : 'USER'})</span>
+          <span className="text-slate-400">({user?.role ? getTurkishStatusLabel(user.role) : 'Personel'})</span>
         </div>
       </div>
     </header>

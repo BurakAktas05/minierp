@@ -41,17 +41,11 @@ public class TenantFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
 
-        // Eğer TenantContext zaten set edilmişse (örn. JwtAuthenticationFilter tarafından), dokunma
-        if (TenantContext.getTenantId() != null && !TenantContext.getTenantId().equals(defaultTenant)) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-
         String tenantId = request.getHeader(tenantHeader);
 
         if (tenantId != null && !tenantId.isBlank()) {
             TenantContext.setTenantId(tenantId.trim());
-        } else {
+        } else if (TenantContext.getTenantId() == null) {
             TenantContext.setTenantId(defaultTenant);
         }
 
@@ -62,3 +56,4 @@ public class TenantFilter extends OncePerRequestFilter {
         }
     }
 }
+

@@ -17,6 +17,8 @@ import { invoiceApi } from '../api/invoiceApi';
 import { partnerApi } from '../api/partnerApi';
 import { inventoryApi } from '../api/inventoryApi';
 import { useToast } from '../context/ToastContext';
+import { formatCurrency } from '../utils/formatters';
+import { useSelectablePartners } from '../hooks/useSelectablePartners';
 import {
   InvoiceType,
   BusinessPartner,
@@ -24,10 +26,7 @@ import {
 } from '../types';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-
-const formatCurrency = (amount: number = 0, currency = 'TRY') => {
-  return new Intl.NumberFormat('tr-TR', { style: 'currency', currency }).format(amount);
-};
+import { getTurkishStatusLabel } from '../components/common/StatusBadge';
 
 interface InvoiceFormItem {
   variantId?: number;
@@ -49,7 +48,6 @@ export const InvoiceCreatePage: React.FC = () => {
 
   // Form durumları
   const [invoiceType, setInvoiceType] = useState<InvoiceType>('SALES_INVOICE');
-  const [partnerId, setPartnerId] = useState<number>(0);
   const [invoiceDate, setInvoiceDate] = useState<string>(
     new Date().toISOString().substring(0, 10)
   );
@@ -62,12 +60,25 @@ export const InvoiceCreatePage: React.FC = () => {
     { description: '', quantity: 1, unitPrice: 0, discountRate: 0, taxRate: 20 },
   ]);
 
+  // Dinamik cari hesap seçimi ve filtreleme (kendi firmasını otomatik hariç tutar)
+  const {
+    selectablePartners,
+    selectedPartnerId: partnerId,
+    setSelectedPartnerId: setPartnerId,
+    selectedPartner,
+    isSelf,
+  } = useSelectablePartners({
+    partners,
+    direction: invoiceType === 'SALES_INVOICE' ? 'CUSTOMER' : 'SUPPLIER',
+  });
+
   // Otomatik tamamlama için düzleştirilmiş varyant listesi
   const allVariants = useMemo(() => {
     const list: Array<{
       id: number;
       productName: string;
       productCode: string;
+      sku: string;
       variantName: string;
       salePrice: number;
       purchasePrice: number;
@@ -80,6 +91,7 @@ export const InvoiceCreatePage: React.FC = () => {
           id: v.id,
           productName: p.name,
           productCode: p.code,
+          sku: v.sku,
           variantName: v.variantName || v.sku,
           salePrice: Number(v.salePrice ?? p.basePrice ?? 0),
           purchasePrice: Number(v.purchasePrice ?? 0),
@@ -89,11 +101,6 @@ export const InvoiceCreatePage: React.FC = () => {
     });
     return list;
   }, [products]);
-
-  // Seçilen cari hesap
-  const selectedPartner = useMemo(() => {
-    return partners.find((p) => p.id === partnerId) || null;
-  }, [partners, partnerId]);
 
   // Ana verileri yükle
   useEffect(() => {
@@ -106,9 +113,6 @@ export const InvoiceCreatePage: React.FC = () => {
         ]);
         setPartners(partList);
         setProducts(prodList);
-        if (partList.length > 0) {
-          setPartnerId(partList[0].id);
-        }
       } catch (err) {
         console.error('Master data yüklenemedi:', err);
         toast.error('Cari ve ürün listesi yüklenirken hata oluştu.');
@@ -184,10 +188,17 @@ export const InvoiceCreatePage: React.FC = () => {
   }, [items]);
 
   const handleSubmit = async (approveImmediately: boolean = true) => {
-    if (!partnerId) {
+    const chosen = partners.find((p) => p.id === partnerId);
+    if (!chosen || !partnerId) {
       toast.error('Lütfen bir cari hesap seçin.');
       return;
     }
+
+    if (isSelf(chosen)) {
+      toast.error('Kendi firmanıza fatura düzenleyemezsiniz! Lütfen bir müşteri veya tedarikçi seçiniz.');
+      return;
+    }
+
 
     const invalidItem = items.find(
       (it) => !it.description.trim() || Number(it.quantity) <= 0 || Number(it.unitPrice) < 0
@@ -400,7 +411,7 @@ export const InvoiceCreatePage: React.FC = () => {
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Cari Seçimi <span className="text-red-500">*</span>
+                Cari Seçimi {invoiceType === 'SALES_INVOICE' ? '(Müşteri)' : '(Tedarikçi)'} <span className="text-red-500">*</span>
               </label>
               <select
                 value={partnerId}
@@ -408,13 +419,20 @@ export const InvoiceCreatePage: React.FC = () => {
                 className="w-full h-9 text-xs bg-slate-50 border border-slate-300 rounded px-3 focus:bg-white focus:outline-none focus:border-emerald-600 font-medium"
                 required
               >
-                {partners.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.code} — {p.title} ({p.type})
+                {selectablePartners.length === 0 ? (
+                  <option value={0} disabled>
+                    Uygun cari bulunamadı
                   </option>
-                ))}
+                ) : (
+                  selectablePartners.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.code} — {p.title || p.name} ({getTurkishStatusLabel(p.type)})
+                    </option>
+                  ))
+                )}
               </select>
             </div>
+
 
             {/* Cari Bilgi Kartı */}
             {selectedPartner && (
@@ -422,7 +440,7 @@ export const InvoiceCreatePage: React.FC = () => {
                 <div className="flex justify-between items-start">
                   <span className="font-bold text-slate-800">{selectedPartner.title}</span>
                   <span className="text-[10px] uppercase font-semibold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">
-                    {selectedPartner.type}
+                    {getTurkishStatusLabel(selectedPartner.type)}
                   </span>
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-600 pt-1 border-t border-slate-200">

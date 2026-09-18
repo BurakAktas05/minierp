@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import { Quotation, QuotationStatus, QuotationType } from '../types';
+import { CreateQuotationRequest, Quotation, QuotationStatus, QuotationType } from '../types';
 
 export const quotationApi = {
   getQuotations: async (type?: QuotationType): Promise<Quotation[]> => {
@@ -12,12 +12,12 @@ export const quotationApi = {
     return res.data;
   },
 
-  createQuotation: async (data: any): Promise<Quotation> => {
+  createQuotation: async (data: CreateQuotationRequest): Promise<Quotation> => {
     const res = await apiClient.post<Quotation>('/quotations', data);
     return res.data;
   },
 
-  updateQuotation: async (id: number, data: any): Promise<Quotation> => {
+  updateQuotation: async (id: number, data: Partial<CreateQuotationRequest>): Promise<Quotation> => {
     const res = await apiClient.put<Quotation>(`/quotations/${id}`, data);
     return res.data;
   },

@@ -21,6 +21,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import {
   Order,
+
   OrderStatus,
   OrderType,
   CreateOrderRequest,
@@ -30,36 +31,22 @@ import {
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Dialog } from '../components/ui/dialog';
-import { StatusBadge } from '../components/common/StatusBadge';
+import { StatusBadge, getTurkishStatusLabel } from '../components/common/StatusBadge';
 import { ErpToolbar } from '../components/common/ErpToolbar';
 import { ErpDataGrid, Column } from '../components/common/ErpDataGrid';
 import { ErpSummaryBar } from '../components/common/ErpSummaryBar';
 import { OfficialReportModal } from '../components/reports/OfficialReportModal';
-
-const formatCurrency = (amount: number = 0) => {
-  return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(amount);
-};
-
-const formatDate = (dateStr?: string) => {
-  if (!dateStr) return '-';
-  try {
-    return new Date(dateStr).toLocaleDateString('tr-TR', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    });
-  } catch {
-    return dateStr;
-  }
-};
+import { formatCurrency, formatDate } from '../utils/formatters';
+import { useSelectablePartners } from '../hooks/useSelectablePartners';
 
 export const OrdersPage: React.FC = () => {
   const navigate = useNavigate();
-  const { isManager } = useAuth();
+  const { isManager, activeTenant, tenants } = useAuth();
   const { toast } = useToast();
   const [orders, setOrders] = useState<Order[]>([]);
   const [partners, setPartners] = useState<BusinessPartner[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'ALL' | 'SALES' | 'PURCHASE' | 'CONFIRMED' | 'DRAFT'>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
@@ -81,11 +68,26 @@ export const OrdersPage: React.FC = () => {
   }
 
   const [newOrderType, setNewOrderType] = useState<OrderType>('SALES_ORDER');
-  const [newPartnerId, setNewPartnerId] = useState<number>(0);
   const [newNotes, setNewNotes] = useState('');
   const [orderItems, setOrderItems] = useState<OrderFormItem[]>([
     { variantId: 0, description: '', quantity: 1, unitPrice: 0, discountRate: 0, taxRate: 20 },
   ]);
+
+  const currentTenantObj = useMemo(() => {
+    return tenants.find((t) => t.id === activeTenant || t.tenantId === activeTenant);
+  }, [tenants, activeTenant]);
+
+  // Dinamik cari hesap seçimi ve filtreleme (kendi firmasını otomatik hariç tutar)
+  const {
+    selectablePartners,
+    selectedPartnerId: newPartnerId,
+    setSelectedPartnerId: setNewPartnerId,
+    isSelf,
+  } = useSelectablePartners({
+    partners,
+    direction: newOrderType === 'SALES_ORDER' ? 'CUSTOMER' : 'SUPPLIER',
+  });
+
 
   const allVariants = useMemo(() => {
     const list: Array<{
@@ -295,10 +297,17 @@ export const OrdersPage: React.FC = () => {
   // Yeni Sipariş Kaydı
   const handleCreateOrder = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newPartnerId) {
+    const chosen = partners.find((p) => p.id === newPartnerId);
+    if (!chosen || !newPartnerId) {
       toast.warning('Lütfen bir cari hesap seçiniz.');
       return;
     }
+
+    if (isSelf(chosen)) {
+      toast.error('Kendi firmanıza sipariş düzenleyemezsiniz! Lütfen bir müşteri veya tedarikçi seçiniz.');
+      return;
+    }
+
 
     if (orderItems.some((it) => !it.variantId || it.variantId === 0)) {
       toast.warning('Lütfen tüm kalemler için geçerli bir ürün/varyant seçiniz.');
@@ -828,20 +837,29 @@ export const OrdersPage: React.FC = () => {
             </div>
 
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">Cari Hesap (Müşteri / Tedarikçi)</label>
+              <label className="block font-semibold text-slate-700 mb-1">
+                Cari Hesap {newOrderType === 'SALES_ORDER' ? '(Müşteri)' : '(Tedarikçi)'}
+              </label>
               <select
                 value={newPartnerId}
                 onChange={(e) => setNewPartnerId(Number(e.target.value))}
                 className="w-full h-8 text-xs bg-white border border-slate-300 rounded px-2.5 focus:outline-none focus:border-slate-800"
                 required
               >
-                {partners.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.code} — {p.title} ({p.type})
+                {selectablePartners.length === 0 ? (
+                  <option value={0} disabled>
+                    Uygun cari bulunamadı
                   </option>
-                ))}
+                ) : (
+                  selectablePartners.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.code} — {p.title || p.name} ({getTurkishStatusLabel(p.type)})
+                    </option>
+                  ))
+                )}
               </select>
             </div>
+
 
             <div className="col-span-full">
               <label className="block font-semibold text-slate-700 mb-1">Sipariş Notu / Sevkiyat Talimatı</label>

@@ -20,6 +20,7 @@ import { treasuryApi } from '../api/treasuryApi';
 import { useToast } from '../context/ToastContext';
 import {
   Invoice,
+
   InvoiceType,
   InvoiceStatus,
   BusinessPartner,
@@ -31,28 +32,13 @@ import {
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Dialog } from '../components/ui/dialog';
-import { StatusBadge } from '../components/common/StatusBadge';
+import { StatusBadge, getTurkishStatusLabel } from '../components/common/StatusBadge';
 import { ErpToolbar } from '../components/common/ErpToolbar';
 import { ErpDataGrid, Column } from '../components/common/ErpDataGrid';
 import { ErpSummaryBar } from '../components/common/ErpSummaryBar';
 import { OfficialReportModal } from '../components/reports/OfficialReportModal';
-
-const formatCurrency = (amount: number = 0, currency = 'TRY') => {
-  return new Intl.NumberFormat('tr-TR', { style: 'currency', currency }).format(amount);
-};
-
-const formatDate = (dateStr?: string) => {
-  if (!dateStr) return '-';
-  try {
-    return new Date(dateStr).toLocaleDateString('tr-TR', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    });
-  } catch {
-    return dateStr;
-  }
-};
+import { formatCurrency, formatDate } from '../utils/formatters';
+import { useSelectablePartners } from '../hooks/useSelectablePartners';
 
 export const InvoicesPage: React.FC = () => {
   const navigate = useNavigate();
@@ -70,9 +56,11 @@ export const InvoicesPage: React.FC = () => {
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [printModalOpen, setPrintModalOpen] = useState(false);
+  const [officialReportModalOpen, setOfficialReportModalOpen] = useState(false);
 
-  // Ödeme formu durumu
+  // Ödeme alma / yapma durumu
   const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().substring(0, 10));
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('BANK_TRANSFER');
   const [selectedAccountId, setSelectedAccountId] = useState<number | undefined>(undefined);
   const [paymentReference, setPaymentReference] = useState('');
@@ -80,12 +68,22 @@ export const InvoicesPage: React.FC = () => {
 
   // Yeni fatura formu durumu
   const [newType, setNewType] = useState<InvoiceType>('SALES_INVOICE');
-  const [newPartnerId, setNewPartnerId] = useState<number>(0);
   const [newNotes, setNewNotes] = useState('');
   const [newCurrency, setNewCurrency] = useState('TRY');
   const [newItems, setNewItems] = useState([
     { description: 'Hizmet / Ürün Bedeli', quantity: 1, unitPrice: 1000, taxRate: 20 },
   ]);
+
+  // Dinamik cari hesap seçimi ve filtreleme (kendi firmasını otomatik hariç tutar)
+  const {
+    selectablePartners,
+    selectedPartnerId: newPartnerId,
+    setSelectedPartnerId: setNewPartnerId,
+    isSelf,
+  } = useSelectablePartners({
+    partners,
+    direction: newType === 'SALES_INVOICE' ? 'CUSTOMER' : 'SUPPLIER',
+  });
 
   const loadData = async () => {
     setLoading(true);
@@ -98,9 +96,7 @@ export const InvoicesPage: React.FC = () => {
       setInvoices(invList);
       setPartners(partList);
       setAccounts(accList);
-      if (partList.length > 0 && newPartnerId === 0) {
-        setNewPartnerId(partList[0].id);
-      }
+
       // Seçili faturanın güncel durumunu koru
       if (selectedInvoice) {
         const found = invList.find((i) => i.id === selectedInvoice.id);
@@ -179,7 +175,7 @@ export const InvoicesPage: React.FC = () => {
     if (!selectedInvoice) return;
     try {
       await invoiceApi.updateInvoiceStatus(selectedInvoice.id, status);
-      toast.success(`Fatura durumu güncellendi: ${status}`);
+      toast.success(`Fatura durumu güncellendi: ${getTurkishStatusLabel(status)}`);
       await loadData();
     } catch (err: any) {
       toast.error('Durum güncellenirken hata: ' + (err.response?.data?.message || err.message));
@@ -188,10 +184,17 @@ export const InvoicesPage: React.FC = () => {
 
   const handleCreateInvoice = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newPartnerId) {
+    const chosen = partners.find((p) => p.id === newPartnerId);
+    if (!chosen || !newPartnerId) {
       toast.warning('Lütfen bir cari hesap seçiniz.');
       return;
     }
+
+    if (isSelf(chosen)) {
+      toast.error('Kendi firmanıza fatura düzenleyemezsiniz! Lütfen bir müşteri veya tedarikçi seçiniz.');
+      return;
+    }
+
 
     try {
       const payload: CreateInvoiceRequest = {
@@ -1027,20 +1030,29 @@ export const InvoicesPage: React.FC = () => {
             </div>
 
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">Cari Hesap</label>
+              <label className="block font-semibold text-slate-700 mb-1">
+                Cari Hesap {newType === 'SALES_INVOICE' ? '(Müşteri)' : '(Tedarikçi)'}
+              </label>
               <select
                 value={newPartnerId}
                 onChange={(e) => setNewPartnerId(Number(e.target.value))}
                 className="w-full h-8 text-xs bg-white border border-slate-300 rounded px-2.5 focus:outline-none focus:border-slate-800"
                 required
               >
-                {partners.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.code} — {p.title} ({p.type})
+                {selectablePartners.length === 0 ? (
+                  <option value={0} disabled>
+                    Uygun cari bulunamadı
                   </option>
-                ))}
+                ) : (
+                  selectablePartners.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.code} — {p.title || p.name} ({getTurkishStatusLabel(p.type)})
+                    </option>
+                  ))
+                )}
               </select>
             </div>
+
           </div>
 
           <div>

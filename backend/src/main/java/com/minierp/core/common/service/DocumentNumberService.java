@@ -37,41 +37,21 @@ public class DocumentNumberService {
     public String generateNumber(String documentType, String prefix) {
         int year = Year.now().getValue();
 
-        // Sequence kaydını kilitle ve son numarayı al
-        Query selectQuery = entityManager.createNativeQuery(
-                "SELECT last_number FROM document_sequences WHERE document_type = ?1 AND prefix = ?2 AND year = ?3 FOR UPDATE"
+        // PostgreSQL atomik upsert ile eşzamanlılık (concurrency) yarış durumları tamamen önlenir.
+        Query query = entityManager.createNativeQuery(
+                "INSERT INTO document_sequences (document_type, prefix, year, last_number, updated_at) " +
+                "VALUES (?1, ?2, ?3, 1, CURRENT_TIMESTAMP) " +
+                "ON CONFLICT (document_type, prefix, year) " +
+                "DO UPDATE SET last_number = document_sequences.last_number + 1, updated_at = CURRENT_TIMESTAMP " +
+                "RETURNING last_number"
         );
-        selectQuery.setParameter(1, documentType);
-        selectQuery.setParameter(2, prefix);
-        selectQuery.setParameter(3, year);
+        query.setParameter(1, documentType);
+        query.setParameter(2, prefix);
+        query.setParameter(3, year);
 
-        Long lastNumber;
-        try {
-            Object result = selectQuery.getSingleResult();
-            lastNumber = ((Number) result).longValue();
-        } catch (Exception e) {
-            // Kayıt yoksa oluştur
-            Query insertQuery = entityManager.createNativeQuery(
-                    "INSERT INTO document_sequences (document_type, prefix, year, last_number) VALUES (?1, ?2, ?3, 0) ON CONFLICT (document_type, prefix, year) DO NOTHING"
-            );
-            insertQuery.setParameter(1, documentType);
-            insertQuery.setParameter(2, prefix);
-            insertQuery.setParameter(3, year);
-            insertQuery.executeUpdate();
-            lastNumber = 0L;
-        }
+        Object result = query.getSingleResult();
+        long newNumber = ((Number) result).longValue();
 
-        long newNumber = lastNumber + 1;
-
-        // Numarayı güncelle
-        Query updateQuery = entityManager.createNativeQuery(
-                "UPDATE document_sequences SET last_number = ?1, updated_at = CURRENT_TIMESTAMP WHERE document_type = ?2 AND prefix = ?3 AND year = ?4"
-        );
-        updateQuery.setParameter(1, newNumber);
-        updateQuery.setParameter(2, documentType);
-        updateQuery.setParameter(3, prefix);
-        updateQuery.setParameter(4, year);
-        updateQuery.executeUpdate();
 
         String formattedNumber = String.format("%s-%d-%05d", prefix, year, newNumber);
         log.debug("Belge numarası üretildi: {} (Tür: {}, Prefix: {})", formattedNumber, documentType, prefix);

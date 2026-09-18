@@ -62,7 +62,7 @@ public class ProductVariantServiceImpl implements ProductVariantService {
     @Override
     @Transactional
     public ProductVariantResponse updateStock(Long id, int quantityChange, Long warehouseId) {
-        ProductVariant variant = productVariantRepository.findById(id)
+        ProductVariant variant = productVariantRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Ürün Varyantı", "id", id));
 
         int newStock = variant.getStockQuantity() + quantityChange;
@@ -97,7 +97,7 @@ public class ProductVariantServiceImpl implements ProductVariantService {
     @Override
     @Transactional
     public ProductVariantResponse reserveStock(Long id, int quantity, Long warehouseId) {
-        ProductVariant variant = productVariantRepository.findById(id)
+        ProductVariant variant = productVariantRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Ürün Varyantı", "id", id));
 
         int available = variant.getAvailableStock();
@@ -130,7 +130,7 @@ public class ProductVariantServiceImpl implements ProductVariantService {
     @Override
     @Transactional
     public ProductVariantResponse releaseReservedStock(Long id, int quantity, Long warehouseId) {
-        ProductVariant variant = productVariantRepository.findById(id)
+        ProductVariant variant = productVariantRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Ürün Varyantı", "id", id));
 
         int currentReserved = variant.getReservedStock();
@@ -163,7 +163,7 @@ public class ProductVariantServiceImpl implements ProductVariantService {
     @Override
     @Transactional
     public ProductVariantResponse fulfillStock(Long id, int quantity, Long warehouseId, String lotNumber) {
-        ProductVariant variant = productVariantRepository.findById(id)
+        ProductVariant variant = productVariantRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Ürün Varyantı", "id", id));
 
         if (variant.getStockQuantity() < quantity) {
@@ -206,8 +206,9 @@ public class ProductVariantServiceImpl implements ProductVariantService {
     @Override
     @Transactional
     public ProductVariantResponse addPhysicalStock(Long id, int quantity, Long warehouseId, String lotNumber) {
-        ProductVariant variant = productVariantRepository.findById(id)
+        ProductVariant variant = productVariantRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Ürün Varyantı", "id", id));
+
 
         int safeQuantity = Math.max(0, quantity);
         int newStock = variant.getStockQuantity() + safeQuantity;

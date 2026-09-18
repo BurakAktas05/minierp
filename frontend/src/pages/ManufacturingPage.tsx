@@ -25,7 +25,7 @@ import {
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Dialog } from '../components/ui/dialog';
-import { StatusBadge } from '../components/common/StatusBadge';
+import { StatusBadge, getTurkishStatusLabel } from '../components/common/StatusBadge';
 import { ErpToolbar } from '../components/common/ErpToolbar';
 import { ErpDataGrid, Column } from '../components/common/ErpDataGrid';
 import { ErpSummaryBar } from '../components/common/ErpSummaryBar';
@@ -111,7 +111,7 @@ export const ManufacturingPage: React.FC = () => {
   const handleUpdateWoStatus = async (woId: number, newStatus: WorkOrderStatus) => {
     try {
       await manufacturingApi.updateWorkOrderStatus(woId, newStatus);
-      toast.success(`İş emri durumu güncellendi: ${newStatus}`);
+      toast.success(`İş emri durumu güncellendi: ${getTurkishStatusLabel(newStatus)}`);
       await loadData();
       if (selectedWo && selectedWo.id === woId) {
         const updated = await manufacturingApi.getWorkOrderById(woId);
@@ -273,7 +273,7 @@ export const ManufacturingPage: React.FC = () => {
                 : 'bg-slate-100 text-slate-700 border-slate-200'
             }`}
           >
-            {row.priority}
+            {getTurkishStatusLabel(row.priority)}
           </span>
         );
       },

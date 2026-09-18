@@ -89,6 +89,13 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error("Veritabanı kısıt ihlali (Örn: mükerrer kod veya bağlı ilişkili kayıt mevcuttur)."));
     }
 
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMessageNotReadable(org.springframework.http.converter.HttpMessageNotReadableException ex) {
+        log.warn("İstek gövdesi okunamadı (Geçersiz JSON veya veri formatı): {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error("Gönderilen istek verisi (JSON) geçersiz veya okunamadı. Lütfen alan tiplerini ve tarih biçimlerini kontrol ediniz."));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGeneralException(Exception ex) {
         log.error("Beklenmeyen sistem hatası: ", ex);
@@ -96,3 +103,4 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error("Sunucu kaynaklı beklenmeyen bir hata oluştu: " + ex.getMessage()));
     }
 }
+

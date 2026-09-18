@@ -8,6 +8,7 @@ import { Input } from '../components/ui/input';
 import { Dialog } from '../components/ui/dialog';
 import { Card } from '../components/ui/card';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '../components/ui/table';
+import { getTurkishStatusLabel } from '../components/common/StatusBadge';
 
 export const AuditLogsPage: React.FC = () => {
   const { isAdmin } = useAuth();
@@ -118,9 +119,9 @@ export const AuditLogsPage: React.FC = () => {
                 <TableCell className="text-xs">
                   {log.oldValue || log.newValue ? (
                     <span className="font-mono text-[11px] text-slate-600">
-                      <span className="text-slate-400">{log.oldValue || '-'}</span>
+                      <span className="text-slate-400">{getTurkishStatusLabel(log.oldValue) || '-'}</span>
                       {' '}&rarr;{' '}
-                      <span className="font-bold text-slate-900">{log.newValue || '-'}</span>
+                      <span className="font-bold text-slate-900">{getTurkishStatusLabel(log.newValue) || '-'}</span>
                     </span>
                   ) : (
                     <span className="text-slate-400 italic">-</span>

@@ -12,16 +12,16 @@ import {
   ShieldCheck,
   LogOut,
   Layers,
-  Building,
   ChevronDown,
   ChevronRight,
   Settings,
   ReceiptText,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { getTurkishStatusLabel } from '../common/StatusBadge';
 
 export const Sidebar: React.FC = () => {
-  const { user, activeTenant, tenants, switchTenant, logout, isAdmin } = useAuth();
+  const { user, activeTenant, tenants, logout, isAdmin } = useAuth();
   const [setupExpanded, setSetupExpanded] = useState(false);
 
   // 1. GÜNLÜK OPERASYONEL MODÜLLER (En yüksek kullanım sıklığı)
@@ -77,28 +77,7 @@ export const Sidebar: React.FC = () => {
         </div>
       </Link>
 
-      {/* 2. Aktif Kiracı (Tenant) Şema Seçici */}
-      <div className="px-4 py-2.5 border-b border-slate-800 bg-slate-950/40">
-        <div className="flex items-center justify-between text-[11px] text-slate-400 mb-1">
-          <span className="flex items-center gap-1 font-semibold uppercase tracking-wider">
-            <Building className="w-3 h-3" /> Kiracı Şeması
-          </span>
-          <span className="text-[10px] text-emerald-400 font-medium">● Aktif</span>
-        </div>
-        <select
-          value={activeTenant}
-          onChange={(e) => switchTenant(e.target.value)}
-          className="w-full bg-slate-800 text-xs text-slate-200 rounded border border-slate-700 px-2.5 py-1.5 focus:outline-none focus:border-slate-500 font-medium cursor-pointer"
-        >
-          {tenants.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.name} ({t.id})
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* 3. Sayfa Navigasyon Bağlantıları (Kullanım Hiyerarşisiyle Gruplanmış) */}
+      {/* 2. Sayfa Navigasyon Bağlantıları (Kullanım Hiyerarşisiyle Gruplanmış) */}
       <nav className="flex-1 px-3 py-3 space-y-4 overflow-y-auto custom-scrollbar">
         {/* GRUP 1: GÜNLÜK OPERASYONLAR */}
         <div>
@@ -216,8 +195,8 @@ export const Sidebar: React.FC = () => {
           </div>
           <div className="overflow-hidden">
             <p className="text-xs font-semibold text-white truncate">{user?.username}</p>
-            <span className="inline-block text-[10px] font-semibold text-slate-400 uppercase">
-              {user?.role ? user.role.replace('ROLE_', '') : 'USER'}
+            <span className="inline-block text-[10px] font-semibold text-slate-400">
+              {user?.role ? getTurkishStatusLabel(user.role) : 'Personel'}
             </span>
           </div>
         </div>

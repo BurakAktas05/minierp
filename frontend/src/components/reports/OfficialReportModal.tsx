@@ -3,6 +3,7 @@ import { Printer, X, FileText, Truck, Building2, CheckCircle2, ShieldCheck, QrCo
 import { Button } from '../ui/button';
 import { Invoice, Waybill, PartnerStatement, Order } from '../../types';
 import { numberToTurkishWords } from '../../utils/numberToWords';
+import { getTurkishStatusLabel } from '../common/StatusBadge';
 
 export type ReportType = 'INVOICE' | 'WAYBILL' | 'STATEMENT' | 'ORDER';
 
@@ -594,7 +595,7 @@ export const OfficialReportModal: React.FC<OfficialReportModalProps> = ({
                       </div>
                       <div>
                         <span className="text-slate-500">Durum:</span>{' '}
-                        <strong className="text-indigo-800">{order.status === 'CONFIRMED' ? 'ONAYLANDI (STOK REZERVE)' : order.status}</strong>
+                        <strong className="text-indigo-800">{getTurkishStatusLabel(order.status).toUpperCase()}</strong>
                       </div>
                     </div>
                   </div>

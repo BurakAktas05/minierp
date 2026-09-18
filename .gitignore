@@ -35,3 +35,6 @@ Thumbs.db
 # Docker volumes
 pgdata/
 rabbitmq_data/
+
+# Exported test documents
+*.pdf

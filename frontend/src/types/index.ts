@@ -30,11 +30,14 @@ export interface AuthResponse {
 
 export interface Tenant {
   id: string;
+  tenantId?: string;
   name: string;
-  schemaName: string;
-  active: boolean;
-  createdAt: string;
+  schemaName?: string;
+  taxNumber?: string;
+  active?: boolean;
+  createdAt?: string;
 }
+
 
 export interface CreateTenantRequest {
   tenantId: string;
@@ -116,6 +119,8 @@ export interface BusinessPartner {
   id: number;
   code: string;
   title: string;
+  name?: string;
+  companyTitle?: string;
   taxNumber?: string;
   taxOffice?: string;
   type: PartnerType;
@@ -123,12 +128,14 @@ export interface BusinessPartner {
   phone?: string;
   address?: string;
   metadata?: Record<string, any>;
+  isOwnCompany?: boolean;
   active: boolean;
   totalDebit?: number;
   totalCredit?: number;
   balance?: number;
   createdAt?: string;
 }
+
 
 export interface StatementLine {
   id: number;

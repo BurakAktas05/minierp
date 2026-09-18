@@ -18,6 +18,8 @@ import { partnerApi } from '../api/partnerApi';
 import { inventoryApi } from '../api/inventoryApi';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { formatCurrency } from '../utils/formatters';
+import { useSelectablePartners } from '../hooks/useSelectablePartners';
 import {
   OrderType,
   BusinessPartner,
@@ -25,10 +27,7 @@ import {
 } from '../types';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-
-const formatCurrency = (amount: number = 0) => {
-  return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(amount);
-};
+import { getTurkishStatusLabel } from '../components/common/StatusBadge';
 
 interface OrderFormItem {
   variantId: number;
@@ -37,7 +36,7 @@ interface OrderFormItem {
   unitPrice: number;
   discountRate: number;
   taxRate: number;
-  priceSource: 'PARTNER_PRICE' | 'DEFAULT_PRICE' | 'MANUAL';
+  priceSource?: 'PARTNER_PRICE' | 'PARTNER_LAST_PRICE' | 'DEFAULT_PRICE' | 'MANUAL';
 }
 
 export const OrderCreatePage: React.FC = () => {
@@ -52,7 +51,6 @@ export const OrderCreatePage: React.FC = () => {
 
   // Form durumları
   const [orderType, setOrderType] = useState<OrderType>('SALES_ORDER');
-  const [partnerId, setPartnerId] = useState<number>(0);
   const [orderDate, setOrderDate] = useState<string>(
     new Date().toISOString().substring(0, 10)
   );
@@ -115,10 +113,17 @@ export const OrderCreatePage: React.FC = () => {
     return list;
   }, [products]);
 
-  // Seçilen cari hesap nesnesi
-  const selectedPartner = useMemo(() => {
-    return partners.find((p) => p.id === partnerId) || null;
-  }, [partners, partnerId]);
+  // Dinamik cari hesap seçimi ve filtreleme (kendi firmasını otomatik hariç tutar)
+  const {
+    selectablePartners,
+    selectedPartnerId: partnerId,
+    setSelectedPartnerId: setPartnerId,
+    selectedPartner,
+    isSelf,
+  } = useSelectablePartners({
+    partners,
+    direction: orderType === 'SALES_ORDER' ? 'CUSTOMER' : 'SUPPLIER',
+  });
 
   // Başlangıç ana verilerini yükle
   useEffect(() => {
@@ -131,9 +136,6 @@ export const OrderCreatePage: React.FC = () => {
         ]);
         setPartners(partList);
         setProducts(prodList);
-        if (partList.length > 0) {
-          setPartnerId(partList[0].id);
-        }
       } catch (err) {
         console.error('Master data yüklenemedi:', err);
         toast.error('Cari ve ürün listesi yüklenirken hata oluştu.');
@@ -143,6 +145,7 @@ export const OrderCreatePage: React.FC = () => {
     };
     loadMasterData();
   }, [toast]);
+
 
   // Varyantlar yüklendiğinde ilk satırı otomatik hazırla
   useEffect(() => {
@@ -239,10 +242,17 @@ export const OrderCreatePage: React.FC = () => {
   }, [orderItems]);
 
   const handleSubmit = async (confirmImmediately: boolean = false) => {
-    if (!partnerId) {
+    const chosen = partners.find((p) => p.id === partnerId);
+    if (!chosen || !partnerId) {
       toast.error('Lütfen bir cari hesap seçin.');
       return;
     }
+
+    if (isSelf(chosen)) {
+      toast.error('Kendi firmanıza sipariş düzenleyemezsiniz! Lütfen bir müşteri veya tedarikçi seçiniz.');
+      return;
+    }
+
 
     const invalidItem = orderItems.find((it) => !it.variantId || it.quantity <= 0);
     if (invalidItem) {
@@ -454,7 +464,7 @@ export const OrderCreatePage: React.FC = () => {
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                İş Ortağı (Müşteri / Tedarikçi) <span className="text-red-500">*</span>
+                İş Ortağı {orderType === 'SALES_ORDER' ? '(Müşteri)' : '(Tedarikçi)'} <span className="text-red-500">*</span>
               </label>
               <select
                 value={partnerId}
@@ -462,13 +472,20 @@ export const OrderCreatePage: React.FC = () => {
                 className="w-full h-9 text-xs bg-slate-50 border border-slate-300 rounded px-3 focus:bg-white focus:outline-none focus:border-indigo-600 font-medium"
                 required
               >
-                {partners.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.code} — {p.title} ({p.type})
+                {selectablePartners.length === 0 ? (
+                  <option value={0} disabled>
+                    Uygun cari bulunamadı
                   </option>
-                ))}
+                ) : (
+                  selectablePartners.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.code} — {p.title || p.name} ({getTurkishStatusLabel(p.type)})
+                    </option>
+                  ))
+                )}
               </select>
             </div>
+
 
             {/* Seçilen Cari Bilgi Kartı */}
             {selectedPartner && (
@@ -476,7 +493,7 @@ export const OrderCreatePage: React.FC = () => {
                 <div className="flex justify-between items-start">
                   <span className="font-bold text-slate-800">{selectedPartner.title}</span>
                   <span className="text-[10px] uppercase font-semibold px-1.5 py-0.5 rounded bg-slate-200 text-slate-700">
-                    {selectedPartner.type}
+                    {getTurkishStatusLabel(selectedPartner.type)}
                   </span>
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-600 pt-1 border-t border-slate-200">

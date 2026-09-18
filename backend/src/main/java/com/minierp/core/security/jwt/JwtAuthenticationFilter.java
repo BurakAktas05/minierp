@@ -72,8 +72,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             log.debug("JWT ile kimlik doğrulandı: user={}, tenant={}, role={}", username, tenantId, role);
         }
 
-        filterChain.doFilter(request, response);
+        try {
+            filterChain.doFilter(request, response);
+        } finally {
+            TenantContext.clear();
+        }
     }
+
+
 
     private String extractTokenFromRequest(HttpServletRequest request) {
         String bearerToken = request.getHeader(AUTHORIZATION_HEADER);

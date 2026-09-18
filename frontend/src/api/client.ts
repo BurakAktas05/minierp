@@ -18,7 +18,7 @@ export const apiClient = axios.create({
 // İstek Araya Girici (Request Interceptor): JWT ve Kiracı Kimliğini (Tenant ID) ekle
 apiClient.interceptors.request.use((config) => {
   const token = localStorage.getItem(TOKEN_KEY);
-  const tenantId = localStorage.getItem(TENANT_KEY) || 'tenant_tekstil';
+  const tenantId = localStorage.getItem(TENANT_KEY);
 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;

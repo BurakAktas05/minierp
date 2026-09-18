@@ -18,6 +18,8 @@ import { orderApi } from '../api/orderApi';
 import { partnerApi } from '../api/partnerApi';
 import { inventoryApi } from '../api/inventoryApi';
 import { useToast } from '../context/ToastContext';
+import { formatCurrency, formatDate } from '../utils/formatters';
+import { useSelectablePartners } from '../hooks/useSelectablePartners';
 import {
   Quotation,
   QuotationType,
@@ -28,27 +30,10 @@ import {
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Dialog } from '../components/ui/dialog';
-import { StatusBadge } from '../components/common/StatusBadge';
+import { StatusBadge, getTurkishStatusLabel } from '../components/common/StatusBadge';
 import { ErpToolbar } from '../components/common/ErpToolbar';
 import { ErpDataGrid, Column } from '../components/common/ErpDataGrid';
 import { ErpSummaryBar } from '../components/common/ErpSummaryBar';
-
-const formatCurrency = (amount: number = 0) => {
-  return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(amount);
-};
-
-const formatDate = (dateStr?: string) => {
-  if (!dateStr) return '-';
-  try {
-    return new Date(dateStr).toLocaleDateString('tr-TR', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    });
-  } catch {
-    return dateStr;
-  }
-};
 
 export const QuotationsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -76,12 +61,22 @@ export const QuotationsPage: React.FC = () => {
   }
 
   const [quoteType, setQuoteType] = useState<QuotationType>('SALES');
-  const [selectedPartnerId, setSelectedPartnerId] = useState<number>(0);
   const [validUntil, setValidUntil] = useState('');
   const [notes, setNotes] = useState('');
   const [items, setItems] = useState<FormItem[]>([
     { variantId: 0, description: '', quantity: 1, unitPrice: 0, discountRate: 0, taxRate: 20 },
   ]);
+
+  // Cari listesini dinamik olarak filtrele ve yönet (kendi firmasını otomatik hariç tutar)
+  const {
+    selectablePartners,
+    selectedPartnerId,
+    setSelectedPartnerId,
+    isSelf,
+  } = useSelectablePartners({
+    partners,
+    direction: quoteType === 'SALES' ? 'CUSTOMER' : 'SUPPLIER',
+  });
 
   const allVariants = useMemo(() => {
     const list: Array<{
@@ -126,9 +121,6 @@ export const QuotationsPage: React.FC = () => {
       setQuotations(quoteList);
       setPartners(partList);
       setProducts(prodList);
-      if (partList.length > 0 && selectedPartnerId === 0) {
-        setSelectedPartnerId(partList[0].id);
-      }
       if (selectedQuote) {
         const found = quoteList.find((q) => q.id === selectedQuote.id);
         setSelectedQuote(found || null);
@@ -139,6 +131,7 @@ export const QuotationsPage: React.FC = () => {
       setLoading(false);
     }
   };
+
 
   useEffect(() => {
     loadData();
@@ -232,7 +225,7 @@ export const QuotationsPage: React.FC = () => {
     if (!selectedQuote) return;
     try {
       await quotationApi.updateStatus(selectedQuote.id, status);
-      toast.success(`Teklif durumu güncellendi: ${status}`);
+      toast.success(`Teklif durumu güncellendi: ${getTurkishStatusLabel(status)}`);
       await loadData();
     } catch (err: any) {
       toast.error('Durum güncellenirken hata: ' + (err.response?.data?.message || err.message));
@@ -259,21 +252,30 @@ export const QuotationsPage: React.FC = () => {
   // Yeni Teklif Kaydet
   const handleCreateQuotation = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedPartnerId) {
-      toast.warning('Lütfen bir cari hesap seçiniz.');
+    const chosenPartner = partners.find((p) => p.id === selectedPartnerId);
+    if (!chosenPartner || !selectedPartnerId) {
+      toast.warning('Lütfen geçerli bir cari hesap seçiniz.');
       return;
     }
+
+
+    if (isSelf(chosenPartner)) {
+      toast.error('Kendi firmanıza teklif düzenleyemezsiniz! Lütfen bir müşteri veya tedarikçi seçiniz.');
+      return;
+    }
+
 
     if (items.some((it) => !it.variantId || it.variantId === 0)) {
       toast.warning('Lütfen tüm kalemler için geçerli bir ürün/varyant seçiniz.');
       return;
     }
 
+
     try {
       await quotationApi.createQuotation({
         type: quoteType,
         partnerId: selectedPartnerId,
-        validUntil: validUntil || undefined,
+        validUntil: validUntil ? (validUntil.includes('T') ? validUntil : `${validUntil}T23:59:59Z`) : undefined,
         notes: notes || undefined,
         items: items.map((it) => ({
           variantId: it.variantId,
@@ -660,20 +662,29 @@ export const QuotationsPage: React.FC = () => {
             </div>
 
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">Cari Hesap (Müşteri / Tedarikçi)</label>
+              <label className="block font-semibold text-slate-700 mb-1">
+                Cari Hesap {quoteType === 'SALES' ? '(Müşteri)' : '(Tedarikçi)'}
+              </label>
               <select
                 value={selectedPartnerId}
                 onChange={(e) => setSelectedPartnerId(Number(e.target.value))}
                 className="w-full h-8 text-xs bg-white border border-slate-300 rounded px-2.5 focus:outline-none focus:border-slate-800"
                 required
               >
-                {partners.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.code} — {p.title} ({p.type})
+                {selectablePartners.length === 0 ? (
+                  <option value={0} disabled>
+                    Uygun cari bulunamadı
                   </option>
-                ))}
+                ) : (
+                  selectablePartners.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.code} — {p.title || p.name} ({getTurkishStatusLabel(p.type)})
+                    </option>
+                  ))
+                )}
               </select>
             </div>
+
 
             <div>
               <label className="block font-semibold text-slate-700 mb-1">Son Geçerlilik Tarihi</label>
