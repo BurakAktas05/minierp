@@ -21,6 +21,8 @@ import java.util.Map;
 public class ProductCreateRequest {
 
     private Long categoryId;
+    private Long partnerId;
+    private com.minierp.modules.inventory.entity.ProductType productType;
 
     @NotBlank(message = "Ürün adı boş bırakılamaz")
     @Size(max = 150, message = "Ürün adı en fazla 150 karakter olabilir")

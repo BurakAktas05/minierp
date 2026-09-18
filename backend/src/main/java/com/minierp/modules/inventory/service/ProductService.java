@@ -13,6 +13,8 @@ public interface ProductService {
 
     List<ProductResponse> getAllProducts();
 
+    List<ProductResponse> getAllProducts(List<com.minierp.modules.inventory.entity.ProductType> types);
+
     ProductResponse getProductById(Long id);
 
     ProductVariantResponse addVariantToProduct(Long productId, ProductVariantRequest variantRequest);

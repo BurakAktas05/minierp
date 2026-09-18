@@ -43,6 +43,18 @@ public class ManufacturingController {
         return ResponseEntity.ok(ApiResponse.success(bom));
     }
 
+    @GetMapping("/manufacturable-variants")
+    public ResponseEntity<ApiResponse<List<com.minierp.modules.inventory.dto.ProductVariantResponse>>> getManufacturableVariants() {
+        List<com.minierp.modules.inventory.dto.ProductVariantResponse> list = manufacturingService.getManufacturableVariants();
+        return ResponseEntity.ok(ApiResponse.success(list));
+    }
+
+    @GetMapping("/component-variants")
+    public ResponseEntity<ApiResponse<List<com.minierp.modules.inventory.dto.ProductVariantResponse>>> getComponentVariants() {
+        List<com.minierp.modules.inventory.dto.ProductVariantResponse> list = manufacturingService.getComponentVariants();
+        return ResponseEntity.ok(ApiResponse.success(list));
+    }
+
     // ==========================================
     // 2. Üretim İş Emirleri (Work Orders)
     // ==========================================

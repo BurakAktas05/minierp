@@ -17,6 +17,10 @@ import com.minierp.modules.manufacturing.mapper.WorkOrderMapper;
 import com.minierp.modules.manufacturing.repository.BillOfMaterialsRepository;
 import com.minierp.modules.manufacturing.repository.WorkOrderRepository;
 import com.minierp.modules.manufacturing.service.ManufacturingService;
+import com.minierp.modules.inventory.dto.ProductVariantResponse;
+import com.minierp.modules.inventory.entity.ProductType;
+import com.minierp.modules.inventory.mapper.ProductVariantMapper;
+import com.minierp.modules.inventory.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -34,17 +38,26 @@ public class ManufacturingServiceImpl implements ManufacturingService {
     private final BillOfMaterialsRepository bomRepository;
     private final WorkOrderRepository workOrderRepository;
     private final ProductVariantRepository productVariantRepository;
+    private final ProductRepository productRepository;
     private final WarehouseRepository warehouseRepository;
     private final ProductVariantService productVariantService;
     private final StockMovementRepository stockMovementRepository;
     private final BomMapper bomMapper;
     private final WorkOrderMapper workOrderMapper;
+    private final ProductVariantMapper productVariantMapper;
 
     @Override
     @Transactional
     public BomDto createBom(CreateBomRequest request) {
         ProductVariant variant = productVariantRepository.findById(request.getVariantId())
                 .orElseThrow(() -> new ResourceNotFoundException("Ürün Varyantı (Mamul)", "id", request.getVariantId()));
+
+        if (variant.getProduct() != null && variant.getProduct().getProductType() == ProductType.SERVICE) {
+            throw new BusinessException("Hizmet kartları (lisans/danışmanlık) üretim reçetesi hedef mamulü olamaz!");
+        }
+        if (variant.getProduct() != null && variant.getProduct().getProductType() == ProductType.RAW_MATERIAL) {
+            throw new BusinessException("Hammadde kartları doğrudan üretim reçetesi hedef mamulü olarak seçilemez! (Mamul veya Yarı Mamul seçiniz)");
+        }
 
         String bomCode = request.getBomCode();
         if (bomCode == null || bomCode.isBlank()) {
@@ -71,6 +84,13 @@ public class ManufacturingServiceImpl implements ManufacturingService {
             for (CreateBomRequest.CreateBomItemRequest itemReq : request.getItems()) {
                 ProductVariant compVariant = productVariantRepository.findById(itemReq.getComponentVariantId())
                         .orElseThrow(() -> new ResourceNotFoundException("Sarf Malzemesi", "id", itemReq.getComponentVariantId()));
+
+                if (compVariant.getProduct() != null && compVariant.getProduct().getProductType() == ProductType.SERVICE) {
+                    throw new BusinessException("Hizmet kartları (" + compVariant.getVariantName() + ") üretim reçetesi sarfiyat kalemi olamaz!");
+                }
+                if (compVariant.getProduct() != null && compVariant.getProduct().getProductType() == ProductType.FINISHED_GOOD) {
+                    throw new BusinessException("Nihai mamul kartları (" + compVariant.getVariantName() + ") üretim reçetesi sarfiyat kalemi olarak eklenemez! (Hammadde veya Yarı Mamul seçiniz)");
+                }
 
                 BomItem item = BomItem.builder()
                         .componentVariant(compVariant)
@@ -207,7 +227,9 @@ public class ManufacturingServiceImpl implements ManufacturingService {
 
             // 1. Hammadde Stok Ön Kontrolü (Eksi Bakiye Koruması)
             for (WorkOrderItem item : workOrder.getItems()) {
-                int consumedAmount = item.getPlannedQuantity().intValue();
+                int consumedAmount = item.getPlannedQuantity().compareTo(BigDecimal.ZERO) > 0
+                        ? Math.max(1, (int) Math.ceil(item.getPlannedQuantity().doubleValue()))
+                        : 0;
                 ProductVariant compVariant = productVariantRepository.findById(item.getComponentVariant().getId())
                         .orElseThrow(() -> new ResourceNotFoundException("Sarf Malzemesi", "id", item.getComponentVariant().getId()));
 
@@ -221,7 +243,9 @@ public class ManufacturingServiceImpl implements ManufacturingService {
             // 2. Hammaddelerin Stoktan Düşülmesi (Sarfiyat - Goods Issue)
             Long sourceWarehouseId = workOrder.getSourceWarehouse() != null ? workOrder.getSourceWarehouse().getId() : null;
             for (WorkOrderItem item : workOrder.getItems()) {
-                int consumedAmount = item.getPlannedQuantity().intValue();
+                int consumedAmount = item.getPlannedQuantity().compareTo(BigDecimal.ZERO) > 0
+                        ? Math.max(1, (int) Math.ceil(item.getPlannedQuantity().doubleValue()))
+                        : 0;
                 item.setConsumedQuantity(item.getPlannedQuantity());
 
                 // Atomik stok düşümü (Eksi bakiye kontrolü servis içinde de garanti altındadır)
@@ -243,7 +267,9 @@ public class ManufacturingServiceImpl implements ManufacturingService {
 
             // 3. Üretilen Mamulün Depoya Girişi (Goods Receipt)
             ProductVariant finishedProduct = workOrder.getBom().getVariant();
-            int producedAmount = workOrder.getPlannedQuantity().intValue();
+            int producedAmount = workOrder.getPlannedQuantity().compareTo(BigDecimal.ZERO) > 0
+                    ? Math.max(1, (int) Math.ceil(workOrder.getPlannedQuantity().doubleValue()))
+                    : 0;
             Long targetWarehouseId = workOrder.getTargetWarehouse() != null ? workOrder.getTargetWarehouse().getId() : null;
             productVariantService.addPhysicalStock(finishedProduct.getId(), producedAmount, targetWarehouseId);
 
@@ -413,5 +439,35 @@ public class ManufacturingServiceImpl implements ManufacturingService {
                         ))
                         .build()
         );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ProductVariantResponse> getManufacturableVariants() {
+        List<com.minierp.modules.inventory.entity.Product> products = productRepository.findByProductTypeInWithVariants(
+                List.of(ProductType.FINISHED_GOOD, ProductType.SEMI_FINISHED)
+        );
+        List<ProductVariant> variants = new ArrayList<>();
+        for (com.minierp.modules.inventory.entity.Product p : products) {
+            if (p.getVariants() != null) {
+                variants.addAll(p.getVariants());
+            }
+        }
+        return productVariantMapper.toResponseList(variants);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ProductVariantResponse> getComponentVariants() {
+        List<com.minierp.modules.inventory.entity.Product> products = productRepository.findByProductTypeInWithVariants(
+                List.of(ProductType.RAW_MATERIAL, ProductType.SEMI_FINISHED)
+        );
+        List<ProductVariant> variants = new ArrayList<>();
+        for (com.minierp.modules.inventory.entity.Product p : products) {
+            if (p.getVariants() != null) {
+                variants.addAll(p.getVariants());
+            }
+        }
+        return productVariantMapper.toResponseList(variants);
     }
 }

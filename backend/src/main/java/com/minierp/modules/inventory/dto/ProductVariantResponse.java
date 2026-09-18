@@ -17,6 +17,9 @@ public class ProductVariantResponse {
 
     private Long id;
     private Long productId;
+    private String productName;
+    private com.minierp.modules.inventory.entity.ProductType productType;
+    private String partnerName;
     private String sku;
     private String barcode;
     private String variantName;

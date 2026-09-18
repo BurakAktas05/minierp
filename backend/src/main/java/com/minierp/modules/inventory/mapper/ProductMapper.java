@@ -14,6 +14,7 @@ public interface ProductMapper {
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "category", ignore = true)
+    @Mapping(target = "partner", ignore = true)
     @Mapping(target = "variants", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
@@ -22,6 +23,8 @@ public interface ProductMapper {
 
     @Mapping(target = "categoryId", source = "category.id")
     @Mapping(target = "categoryName", source = "category.name")
+    @Mapping(target = "partnerId", source = "partner.id")
+    @Mapping(target = "partnerName", source = "partner.name")
     @Mapping(target = "variants", source = "variants")
     ProductResponse toResponse(Product entity);
 

@@ -18,7 +18,7 @@ export const CategoriesPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
 
-  // New Category Dialog
+  // Yeni Kategori Modalı
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newCode, setNewCode] = useState('');
   const [newName, setNewName] = useState('');
@@ -69,7 +69,7 @@ export const CategoriesPage: React.FC = () => {
     }
   };
 
-  // Filtered categories
+  // Filtrelenmiş kategoriler
   const filteredCategories = useMemo(() => {
     return categories.filter((cat) => {
       if (searchTerm) {
@@ -84,7 +84,7 @@ export const CategoriesPage: React.FC = () => {
     });
   }, [categories, searchTerm]);
 
-  // Columns definition for ErpDataGrid
+  // Tablo sütun tanımları
   const columns: Column<Category>[] = [
     {
       id: 'code',

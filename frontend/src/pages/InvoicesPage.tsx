@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   FileText,
   CreditCard,
@@ -54,6 +55,7 @@ const formatDate = (dateStr?: string) => {
 };
 
 export const InvoicesPage: React.FC = () => {
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [partners, setPartners] = useState<BusinessPartner[]>([]);
@@ -63,20 +65,20 @@ export const InvoicesPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
 
-  // Modals
+  // Modallar
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [printModalOpen, setPrintModalOpen] = useState(false);
 
-  // Payment form state
+  // Ödeme formu durumu
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('BANK_TRANSFER');
   const [selectedAccountId, setSelectedAccountId] = useState<number | undefined>(undefined);
   const [paymentReference, setPaymentReference] = useState('');
   const [paymentNotes, setPaymentNotes] = useState('');
 
-  // Create Invoice form state
+  // Yeni fatura formu durumu
   const [newType, setNewType] = useState<InvoiceType>('SALES_INVOICE');
   const [newPartnerId, setNewPartnerId] = useState<number>(0);
   const [newNotes, setNewNotes] = useState('');
@@ -99,7 +101,7 @@ export const InvoicesPage: React.FC = () => {
       if (partList.length > 0 && newPartnerId === 0) {
         setNewPartnerId(partList[0].id);
       }
-      // Update selected invoice reference if still exists
+      // Seçili faturanın güncel durumunu koru
       if (selectedInvoice) {
         const found = invList.find((i) => i.id === selectedInvoice.id);
         setSelectedInvoice(found || null);
@@ -136,6 +138,11 @@ export const InvoicesPage: React.FC = () => {
     }
 
     try {
+      // Eğer fatura taslak ise ödeme alabilmek için önce faturayı otomatik onayla
+      if (selectedInvoice.status === 'DRAFT') {
+        await invoiceApi.updateInvoiceStatus(selectedInvoice.id, 'APPROVED');
+      }
+
       const payload: CreatePaymentRequest = {
         invoiceId: selectedInvoice.id,
         amount: amountNum,
@@ -210,10 +217,10 @@ export const InvoicesPage: React.FC = () => {
     }
   };
 
-  // Filtered invoice list
+  // Filtrelenmiş fatura listesi
   const filteredInvoices = useMemo(() => {
     return invoices.filter((inv) => {
-      // Tab filter
+      // Sekme filtresi
       if (activeTab === 'SALES' && inv.invoiceType !== 'SALES_INVOICE') return false;
       if (activeTab === 'PURCHASE' && inv.invoiceType !== 'PURCHASE_INVOICE') return false;
       if (activeTab === 'UNPAID' && (inv.status === 'PAID' || inv.status === 'CANCELLED')) return false;
@@ -226,7 +233,7 @@ export const InvoicesPage: React.FC = () => {
         if (!isOverdue) return false;
       }
 
-      // Search term
+      // Arama terimi filtresi
       if (searchTerm) {
         const term = searchTerm.toLowerCase();
         const pName = inv.partnerTitle || inv.partner?.name || '';
@@ -240,7 +247,7 @@ export const InvoicesPage: React.FC = () => {
     });
   }, [invoices, activeTab, searchTerm]);
 
-  // Financial totals
+  // Finansal toplamlar
   const totalAmountSum = useMemo(() => {
     return filteredInvoices.reduce((sum, i) => sum + (i.totalAmount || 0), 0);
   }, [filteredInvoices]);
@@ -253,7 +260,7 @@ export const InvoicesPage: React.FC = () => {
     return filteredInvoices.reduce((sum, i) => sum + (i.remainingAmount || 0), 0);
   }, [filteredInvoices]);
 
-  // DataGrid Columns Definition
+  // Tablo sütun tanımları
   const columns: Column<Invoice>[] = [
     {
       id: 'invoiceNumber',
@@ -381,7 +388,7 @@ export const InvoicesPage: React.FC = () => {
           {
             label: 'Yeni Fatura',
             icon: <Plus className="w-3.5 h-3.5 text-white" />,
-            onClick: () => setCreateModalOpen(true),
+            onClick: () => navigate('/invoices/new'),
             variant: 'primary',
           },
           {
@@ -893,6 +900,15 @@ export const InvoicesPage: React.FC = () => {
                 <span className="font-mono text-amber-600">{formatCurrency(selectedInvoice.remainingAmount, selectedInvoice.currency)}</span>
               </div>
             </div>
+
+            {selectedInvoice.status === 'DRAFT' && (
+              <div className="bg-amber-50 border border-amber-200 rounded p-2 text-xs text-amber-800 flex items-center gap-1.5">
+                <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                <span>
+                  <strong>Bilgi:</strong> Bu fatura henüz Taslak durumundadır. Tahsilat kaydedildiğinde fatura otomatik olarak onaylanıp resmileştirilecektir.
+                </span>
+              </div>
+            )}
 
             <div className="space-y-3 text-xs">
               <div>

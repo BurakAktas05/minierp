@@ -1,4 +1,4 @@
-// Standard API response wrapper
+// Standart API yanıt sarmalayıcısı
 export interface ApiResponse<T> {
   success: boolean;
   message: string;
@@ -7,7 +7,7 @@ export interface ApiResponse<T> {
   timestamp?: string;
 }
 
-// 1. Auth & Tenant Types
+// 1. Kimlik Doğrulama & Kiracı Tipleri
 export type UserRole = 'ROLE_ADMIN' | 'ROLE_MANAGER' | 'ROLE_USER';
 
 export interface User {
@@ -41,7 +41,7 @@ export interface CreateTenantRequest {
   name: string;
 }
 
-// 2. Inventory & Product Types
+// 2. Stok & Ürün Tipleri
 export interface Category {
   id: number;
   code: string;
@@ -50,9 +50,14 @@ export interface Category {
   parentId?: number;
 }
 
+export type ProductType = 'FINISHED_GOOD' | 'RAW_MATERIAL' | 'SEMI_FINISHED' | 'SERVICE' | 'COMMERCIAL_GOOD';
+
 export interface ProductVariant {
   id: number;
   productId?: number;
+  productName?: string;
+  productType?: ProductType;
+  partnerName?: string;
   sku: string;
   barcode?: string;
   variantName?: string;
@@ -71,6 +76,9 @@ export interface Product {
   id: number;
   code: string;
   name: string;
+  productType?: ProductType;
+  partnerId?: number;
+  partnerName?: string;
   description?: string;
   basePrice: number;
   baseUnit?: string;
@@ -101,7 +109,7 @@ export interface ProductCreateRequest {
   }>;
 }
 
-// 3. Business Partner (Cari Hesap) Types
+// 3. Cari Hesap Tipleri
 export type PartnerType = 'CUSTOMER' | 'SUPPLIER' | 'BOTH';
 
 export interface BusinessPartner {
@@ -146,7 +154,7 @@ export interface PartnerStatement {
   lines: StatementLine[];
 }
 
-// 4. Quotation (Teklif) Types
+// 4. Teklif Tipleri
 export type QuotationType = 'SALES' | 'PURCHASE';
 export type QuotationStatus = 'DRAFT' | 'SENT' | 'ACCEPTED' | 'REJECTED' | 'EXPIRED' | 'CONVERTED';
 
@@ -189,7 +197,7 @@ export interface CreateQuotationRequest {
   }>;
 }
 
-// 5. Order (Sipariş) Types
+// 5. Sipariş Tipleri
 export type OrderType = 'SALES_ORDER' | 'PURCHASE_ORDER';
 export type OrderStatus = 'DRAFT' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED';
 
@@ -241,7 +249,7 @@ export interface CreateOrderRequest {
   }>;
 }
 
-// 6. Waybill (İrsaliye) Types
+// 6. İrsaliye Tipleri
 export type WaybillType = 'DISPATCH' | 'RECEIPT';
 export type WaybillStatus = 'DRAFT' | 'DISPATCHED' | 'DELIVERED' | 'CANCELLED';
 
@@ -288,7 +296,7 @@ export interface CreateWaybillRequest {
   }>;
 }
 
-// 7. Audit Log Types
+// 7. Denetim İzi (Audit Log) Tipleri
 export interface AuditLog {
   id: number;
   username: string;
@@ -302,7 +310,7 @@ export interface AuditLog {
   timestamp: string;
 }
 
-// 8. Invoice (Fatura) Types
+// 8. Fatura Tipleri
 export type InvoiceType = 'SALES_INVOICE' | 'PURCHASE_INVOICE';
 export type InvoiceStatus = 'DRAFT' | 'APPROVED' | 'SENT' | 'PARTIALLY_PAID' | 'PAID' | 'CANCELLED';
 
@@ -369,7 +377,7 @@ export interface CreateInvoiceRequest {
   }>;
 }
 
-// 9. Payment (Ödeme/Tahsilat) Types
+// 9. Ödeme ve Tahsilat Tipleri
 export type PaymentType = 'INCOMING' | 'OUTGOING';
 export type PaymentMethod = 'CASH' | 'BANK_TRANSFER';
 export type PaymentStatus = 'PENDING' | 'COMPLETED' | 'CANCELLED';
@@ -407,7 +415,7 @@ export interface CreatePaymentRequest {
   exchangeRate?: number;
 }
 
-// 10. Manufacturing & Bill of Materials (BOM) Types
+// 10. Üretim & Ürün Reçetesi (BOM) Tipleri
 export type WorkOrderStatus = 'DRAFT' | 'PLANNED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
 
 export interface BomItem {
@@ -520,7 +528,7 @@ export interface SectorTemplate {
   criticalTracking: string;
 }
 
-// 11. Treasury & Cash/Bank (Kasa & Banka) Types
+// 11. Kasa & Banka Tipleri
 export type TreasuryAccountType = 'CASH' | 'BANK';
 
 export interface TreasuryAccount {

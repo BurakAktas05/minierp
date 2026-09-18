@@ -48,17 +48,17 @@ export const PartnersPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPartner, setSelectedPartner] = useState<BusinessPartner | null>(null);
 
-  // Modals
+  // Modallar
   const [statementModalOpen, setStatementModalOpen] = useState(false);
   const [statementLoading, setStatementLoading] = useState(false);
   const [statement, setStatement] = useState<PartnerStatement | null>(null);
   const [statementFilter, setStatementFilter] = useState<'ALL' | 'INVOICE' | 'PAYMENT'>('ALL');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
-  // Create Partner form state
+  // Yeni cari kartı formu durumu
   const [newCode, setNewCode] = useState('');
   const [newTitle, setNewTitle] = useState('');
-  const [newType, setNewType] = useState<PartnerType>('CUSTOMER');
+  const [newType, setNewType] = useState<PartnerType>('BOTH');
   const [newTaxNumber, setNewTaxNumber] = useState('');
   const [newTaxOffice, setNewTaxOffice] = useState('');
   const [newEmail, setNewEmail] = useState('');
@@ -128,6 +128,7 @@ export const PartnersPage: React.FC = () => {
       setIsCreateModalOpen(false);
       setNewCode('');
       setNewTitle('');
+      setNewType('BOTH');
       setNewTaxNumber('');
       setNewTaxOffice('');
       setNewEmail('');
@@ -140,7 +141,7 @@ export const PartnersPage: React.FC = () => {
     }
   };
 
-  // Filtered partners
+  // Filtrelenmiş cari hesaplar
   const filteredPartners = useMemo(() => {
     return partners.filter((p) => {
       if (activeTab === 'CUSTOMER' && p.type !== 'CUSTOMER' && p.type !== 'BOTH') return false;
@@ -160,7 +161,7 @@ export const PartnersPage: React.FC = () => {
     });
   }, [partners, activeTab, searchTerm]);
 
-  // Financial totals across filtered partners
+  // Filtrelenmiş cariler üzerinden finansal toplamlar
   const totalDebitSum = useMemo(() => {
     return filteredPartners.reduce((sum, p) => sum + (p.totalDebit || 0), 0);
   }, [filteredPartners]);
@@ -173,7 +174,7 @@ export const PartnersPage: React.FC = () => {
     return filteredPartners.reduce((sum, p) => sum + (p.balance || 0), 0);
   }, [filteredPartners]);
 
-  // Filtered statement lines inside modal
+  // Modal içi filtrelenmiş ekstre satırları
   const filteredStatementLines = useMemo(() => {
     return (statement?.lines || []).filter((line) => {
       if (statementFilter === 'INVOICE') return line.documentType.includes('INVOICE');
@@ -188,7 +189,7 @@ export const PartnersPage: React.FC = () => {
     });
   }, [statement, statementFilter]);
 
-  // DataGrid Columns Definition
+  // Tablo sütun tanımları
   const columns: Column<BusinessPartner>[] = [
     {
       id: 'code',
@@ -586,9 +587,9 @@ export const PartnersPage: React.FC = () => {
                 onChange={(e) => setNewType(e.target.value as PartnerType)}
                 className="w-full h-8 text-xs bg-white border border-slate-300 rounded px-2.5 focus:outline-none focus:border-slate-800"
               >
-                <option value="CUSTOMER">Müşteri (Alıcı)</option>
-                <option value="SUPPLIER">Tedarikçi (Satıcı)</option>
-                <option value="BOTH">Hem Müşteri Hem Tedarikçi</option>
+                <option value="BOTH">Müşteri & Tedarikçi (Hem Alır Hem Satar) [Varsayılan]</option>
+                <option value="CUSTOMER">Sadece Müşteri (Alıcı)</option>
+                <option value="SUPPLIER">Sadece Tedarikçi (Satıcı)</option>
               </select>
             </div>
             <Input

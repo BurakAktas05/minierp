@@ -72,7 +72,7 @@ public class OrderServiceImpl implements OrderService {
                 .metadata(request.getMetadata())
                 .build();
 
-        processOrderItems(order, request.getItems());
+        processOrderItems(order, request.getItems(), partner.getId(), request.getOrderType());
         Order saved = orderRepository.save(order);
         log.info("Yeni resmi sipariş taslak olarak oluşturuldu: No={}, Tür={}, Cari={}",
                 saved.getOrderNumber(), saved.getOrderType(), partner.getName());
@@ -170,7 +170,7 @@ public class OrderServiceImpl implements OrderService {
 
         if (request.getItems() != null && !request.getItems().isEmpty()) {
             order.getItems().clear();
-            processOrderItems(order, request.getItems());
+            processOrderItems(order, request.getItems(), order.getPartner().getId(), order.getOrderType());
         }
 
         Order updated = orderRepository.save(order);
@@ -234,7 +234,7 @@ public class OrderServiceImpl implements OrderService {
         return orderMapper.toResponse(updated);
     }
 
-    private void processOrderItems(Order order, List<OrderItemRequest> itemRequests) {
+    private void processOrderItems(Order order, List<OrderItemRequest> itemRequests, Long partnerId, OrderType orderType) {
         BigDecimal subtotalSum = BigDecimal.ZERO;
         BigDecimal taxSum = BigDecimal.ZERO;
         BigDecimal discountSum = BigDecimal.ZERO;
@@ -243,7 +243,17 @@ public class OrderServiceImpl implements OrderService {
             ProductVariant variant = productVariantRepository.findById(req.getVariantId())
                     .orElseThrow(() -> new ResourceNotFoundException("Ürün Varyantı", "id", req.getVariantId()));
 
-            BigDecimal unitPrice = req.getUnitPrice();
+            // Birim fiyat: İstekte belirtildiyse onu kullan, yoksa ürün varyantının standart fiyatını al
+            BigDecimal unitPrice;
+            if (req.getUnitPrice() != null && req.getUnitPrice().compareTo(BigDecimal.ZERO) > 0) {
+                unitPrice = req.getUnitPrice();
+            } else {
+                BigDecimal defaultPrice = (orderType == OrderType.SALES_ORDER)
+                        ? variant.getSalePrice()
+                        : variant.getPurchasePrice();
+                unitPrice = defaultPrice != null ? defaultPrice : BigDecimal.ZERO;
+            }
+
             BigDecimal quantity = BigDecimal.valueOf(req.getQuantity());
 
             BigDecimal discountRate = req.getDiscountRate() != null ? req.getDiscountRate() : BigDecimal.ZERO;

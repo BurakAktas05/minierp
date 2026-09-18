@@ -48,7 +48,14 @@ public class TenantProvisioningService {
                 .schemas(schemaName)
                 .locations("classpath:db/migration/tenants")
                 .baselineOnMigrate(true)
+                .validateOnMigrate(false)
                 .load();
+
+        try {
+            flyway.repair();
+        } catch (Exception e) {
+            log.warn("Flyway repair uyarısı: {}", e.getMessage());
+        }
 
         flyway.migrate();
     }

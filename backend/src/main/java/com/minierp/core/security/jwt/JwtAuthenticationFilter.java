@@ -48,8 +48,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String tenantId = jwtTokenProvider.getTenantIdFromToken(token);
             String role = jwtTokenProvider.getRoleFromToken(token);
 
-            // 1. TenantContext'i JWT'deki tenantId ile set et (Header'a gerek kalmaz)
-            if (StringUtils.hasText(tenantId)) {
+            // 1. TenantContext'i ayarla:
+            // Eğer istek başlığında X-Tenant-ID varsa ve kullanıcı yetkili ise header'a öncelik ver
+            String headerTenant = request.getHeader("X-Tenant-ID");
+            if (StringUtils.hasText(headerTenant) && ("ROLE_ADMIN".equals(role) || "ROLE_MANAGER".equals(role))) {
+                TenantContext.setTenantId(headerTenant.trim());
+            } else if (StringUtils.hasText(tenantId)) {
                 TenantContext.setTenantId(tenantId);
             }
 

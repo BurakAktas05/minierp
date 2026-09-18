@@ -3,2012 +3,1485 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MiniERP - Veritabanı ER Modeli, Sistem İşleyişi & Kurumsal Mimari</title>
+  <title>MiniERP - Veritabanı ER Diyagramı (ERD)</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
       --bg-dark: #070b14;
-      --bg-surface: #0e1526;
-      --bg-card: rgba(15, 23, 42, 0.88);
-      --border: rgba(51, 65, 85, 0.6);
+      --bg-canvas: #0b1120;
+      --bg-card: #0f172a;
+      --bg-card-header: #1e293b;
+      --border-card: #334155;
       --border-focus: #38bdf8;
-      --primary: #38bdf8;
-      --primary-glow: rgba(56, 189, 248, 0.25);
-      --secondary: #818cf8;
-      --secondary-glow: rgba(129, 140, 248, 0.25);
-      --accent: #34d399;
-      --accent-glow: rgba(52, 211, 153, 0.2);
-      --warning: #fbbf24;
-      --danger: #f87171;
-      --text: #f8fafc;
+      --text-main: #f8fafc;
       --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --pk-color: #f59e0b;
+      --fk-color: #38bdf8;
+      --uk-color: #a855f7;
+      --type-color: #94a3b8;
+      --line-default: #475569;
+      --line-active: #38bdf8;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
       font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-      background: radial-gradient(circle at 50% 0%, #172554 0%, #070b14 75%);
-      color: var(--text);
-      min-height: 100vh;
-      line-height: 1.6;
-      overflow-x: hidden;
-    }
-
-    /* Header */
-    header {
-      padding: 16px 40px;
-      border-bottom: 1px solid var(--border);
-      backdrop-filter: blur(20px);
-      background: rgba(7, 11, 20, 0.92);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-    }
-
-    .header-brand {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-    }
-
-    .logo-badge {
-      background: linear-gradient(135deg, var(--primary), var(--secondary));
-      color: #030712;
-      font-size: 0.82rem;
-      font-weight: 800;
-      letter-spacing: 0.08em;
-      padding: 5px 14px;
-      border-radius: 999px;
-      text-transform: uppercase;
-      box-shadow: 0 0 15px var(--primary-glow);
-    }
-
-    h1 {
-      font-size: 1.35rem;
-      font-weight: 700;
-      letter-spacing: -0.02em;
-    }
-
-    .status-badge {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.8rem;
-      color: var(--accent);
-      background: rgba(52, 211, 153, 0.12);
-      border: 1px solid rgba(52, 211, 153, 0.35);
-      padding: 6px 16px;
-      border-radius: 999px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .pulse-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--accent);
-      box-shadow: 0 0 10px var(--accent);
-      animation: pulse 2s infinite;
-    }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.4; transform: scale(0.85); }
-    }
-
-    /* Tabs Navigation */
-    .tabs-nav {
-      display: flex;
-      gap: 8px;
-      padding: 12px 40px;
-      background: rgba(14, 21, 38, 0.8);
-      border-bottom: 1px solid var(--border);
-      overflow-x: auto;
-      backdrop-filter: blur(12px);
-    }
-
-    .tab-btn {
-      background: rgba(30, 41, 59, 0.5);
-      border: 1px solid var(--border);
-      color: var(--text-muted);
-      padding: 8px 18px;
-      border-radius: 10px;
-      font-size: 0.88rem;
-      font-weight: 600;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      transition: all 0.2s ease;
-      white-space: nowrap;
-    }
-
-    .tab-btn:hover {
-      background: rgba(56, 189, 248, 0.15);
-      color: var(--primary);
-      border-color: rgba(56, 189, 248, 0.4);
-    }
-
-    .tab-btn.active {
-      background: linear-gradient(135deg, rgba(56, 189, 248, 0.25), rgba(129, 140, 248, 0.25));
-      color: #fff;
-      border-color: var(--primary);
-      box-shadow: 0 0 14px var(--primary-glow);
-    }
-
-    /* Main Container */
-    main {
-      max-width: 1600px;
-      margin: 0 auto;
-      padding: 28px 24px 60px;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
       display: flex;
       flex-direction: column;
-      gap: 32px;
+      user-select: none;
+      -webkit-font-smoothing: antialiased;
     }
 
-    .tab-content {
-      display: none;
-      animation: fadeIn 0.3s ease;
-    }
-
-    .tab-content.active {
-      display: block;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(6px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    .section-header {
+    /* Üst Kontrol Çubuğu */
+    header {
+      height: 58px;
+      background: rgba(11, 17, 32, 0.95);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid #1e293b;
       display: flex;
+      align-items: center;
       justify-content: space-between;
-      align-items: flex-end;
-      margin-bottom: 16px;
-      flex-wrap: wrap;
+      padding: 0 20px;
+      z-index: 50;
+      flex-shrink: 0;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
       gap: 12px;
     }
 
-    .section-title {
-      font-size: 1.25rem;
+    .logo-badge {
+      background: linear-gradient(135deg, #0284c7, #6366f1);
+      color: #fff;
+      font-weight: 800;
+      font-size: 0.8rem;
+      padding: 4px 10px;
+      border-radius: 6px;
+      letter-spacing: 0.05em;
+    }
+
+    .brand h1 {
+      font-size: 1.05rem;
       font-weight: 700;
-      color: var(--primary);
+      color: #f8fafc;
+    }
+
+    .brand span {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Modül Filtreleri */
+    .module-filters {
+      display: flex;
+      gap: 6px;
+      background: #0f172a;
+      padding: 3px;
+      border-radius: 8px;
+      border: 1px solid #1e293b;
+    }
+
+    .filter-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 5px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .filter-btn:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .filter-btn.active {
+      background: #0284c7;
+      color: #fff;
+    }
+
+    /* Arama ve Araçlar */
+    .toolbar-actions {
       display: flex;
       align-items: center;
       gap: 10px;
     }
 
-    .section-desc {
-      font-size: 0.88rem;
-      color: var(--text-muted);
-      margin-top: 4px;
-    }
-
-    .glass-box {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 18px;
-      padding: 24px;
-      backdrop-filter: blur(20px);
-      box-shadow: 0 20px 45px -15px rgba(0,0,0,0.65);
+    .search-box {
       position: relative;
     }
 
-    /* Toolbar & Pan-Zoom Canvas */
-    .toolbar {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 14px;
-      flex-wrap: wrap;
+    .search-box input {
+      background: #0f172a;
+      border: 1px solid #334155;
+      color: #fff;
+      font-size: 0.8rem;
+      padding: 6px 12px 6px 30px;
+      border-radius: 6px;
+      width: 220px;
+      outline: none;
+      transition: border-color 0.2s;
+      font-family: inherit;
+    }
+
+    .search-box input:focus {
+      border-color: #38bdf8;
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-dim);
+      font-size: 0.75rem;
     }
 
     .tool-btn {
-      background: rgba(30, 41, 59, 0.85);
-      border: 1px solid var(--border);
-      color: var(--text);
-      padding: 7px 15px;
-      border-radius: 8px;
-      font-size: 0.82rem;
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #cbd5e1;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 0.8rem;
       font-weight: 600;
       cursor: pointer;
       display: flex;
       align-items: center;
-      gap: 6px;
-      transition: all 0.2s ease;
+      gap: 5px;
+      transition: all 0.15s;
     }
 
     .tool-btn:hover {
-      border-color: var(--primary);
-      background: rgba(56, 189, 248, 0.18);
-      color: var(--primary);
+      background: #38bdf8;
+      color: #040813;
+      border-color: #38bdf8;
     }
 
-    .zoom-level {
+    .zoom-text {
       font-family: 'JetBrains Mono', monospace;
-      font-size: 0.82rem;
-      color: var(--accent);
-      background: rgba(52, 211, 153, 0.1);
-      border: 1px solid rgba(52, 211, 153, 0.3);
-      padding: 5px 12px;
-      border-radius: 8px;
+      font-size: 0.78rem;
+      color: #38bdf8;
+      font-weight: 700;
+      min-width: 48px;
+      text-align: center;
     }
 
-    .pan-hint {
-      font-size: 0.82rem;
-      color: var(--text-muted);
-      margin-left: auto;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .diagram-container {
-      background: #090e1a;
-      border: 1px solid rgba(56, 189, 248, 0.25);
-      border-radius: 14px;
-      height: 760px;
+    /* Sonsuz Canvas & Görünüm */
+    #viewport {
+      flex: 1;
       position: relative;
       overflow: hidden;
       cursor: grab;
-      user-select: none;
-      -webkit-user-select: none;
+      background-color: var(--bg-canvas);
+      background-image: 
+        radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.08) 1px, transparent 0);
+      background-size: 32px 32px;
     }
 
-    .diagram-container.grabbing {
+    #viewport.grabbing {
       cursor: grabbing;
     }
 
-    .pan-zoom-canvas {
+    #canvasWorld {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 10000px;
+      height: 10000px;
+      transform-origin: 0 0;
+      will-change: transform;
+    }
+
+    /* SVG Bağlantı Çizgileri */
+    #svgConnections {
       position: absolute;
       top: 0;
       left: 0;
       width: 100%;
       height: 100%;
-      transform-origin: 0 0;
-      will-change: transform;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-
-    .pan-zoom-canvas.animate {
-      transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
-    }
-
-    pre.mermaid {
-      margin: auto;
       pointer-events: none;
+      z-index: 10;
     }
 
-    pre.mermaid svg {
-      max-width: none !important;
-      pointer-events: none;
+    .rel-line {
+      fill: none;
+      stroke: #334155;
+      stroke-width: 1.5;
+      stroke-dasharray: 4 2;
+      transition: stroke 0.2s, stroke-width 0.2s;
     }
 
-    /* Process Flow Steps */
-    .workflow-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 18px;
-      margin-bottom: 24px;
+    .rel-line.active {
+      stroke: #38bdf8;
+      stroke-width: 2.8;
+      stroke-dasharray: none;
+      filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.8));
     }
 
-    .step-card {
-      background: rgba(15, 23, 42, 0.75);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      position: relative;
-      transition: all 0.25s ease;
+    .rel-badge {
+      fill: #1e293b;
+      stroke: #38bdf8;
+      stroke-width: 1;
     }
 
-    .step-card:hover {
-      border-color: var(--primary);
-      box-shadow: 0 10px 25px var(--primary-glow);
-      transform: translateY(-2px);
+    /* Tablo Kartları */
+    .table-node {
+      position: absolute;
+      width: 320px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-card);
+      border-radius: 8px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6), 0 8px 10px -6px rgba(0, 0, 0, 0.6);
+      z-index: 20;
+      cursor: pointer;
+      transition: border-color 0.2s, box-shadow 0.2s, opacity 0.2s;
+      overflow: hidden;
     }
 
-    .step-header {
+    .table-node:hover {
+      border-color: #38bdf8;
+      box-shadow: 0 0 20px rgba(56, 189, 248, 0.25);
+    }
+
+    .table-node.selected {
+      border-color: #38bdf8;
+      box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.5), 0 12px 28px rgba(0,0,0,0.8);
+      z-index: 30;
+    }
+
+    .table-node.dimmed {
+      opacity: 0.2;
+    }
+
+    .node-header {
+      padding: 9px 12px;
+      background: var(--bg-card-header);
+      border-bottom: 1px solid var(--border-card);
       display: flex;
       align-items: center;
       justify-content: space-between;
     }
 
-    .step-num {
-      width: 32px;
-      height: 32px;
-      border-radius: 8px;
-      background: linear-gradient(135deg, var(--primary), var(--secondary));
-      color: #030712;
-      font-weight: 800;
-      font-size: 0.9rem;
+    .table-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #f1f5f9;
       display: flex;
       align-items: center;
-      justify-content: center;
+      gap: 7px;
     }
 
-    .step-badge {
+    .schema-tag {
+      font-size: 0.65rem;
       font-family: 'JetBrains Mono', monospace;
-      font-size: 0.74rem;
-      padding: 3px 8px;
-      border-radius: 6px;
-      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-muted);
     }
 
-    .step-title {
-      font-size: 1.05rem;
+    .mod-tag {
+      font-size: 0.65rem;
       font-weight: 700;
-      color: #fff;
-    }
-
-    .step-desc {
-      font-size: 0.85rem;
-      color: #cbd5e1;
-      line-height: 1.55;
-    }
-
-    .step-event {
-      margin-top: auto;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.78rem;
-      background: rgba(6, 10, 19, 0.85);
-      border: 1px solid rgba(56, 189, 248, 0.3);
-      padding: 8px 12px;
-      border-radius: 8px;
-      color: var(--primary);
-    }
-
-    /* Badges & Pills */
-    .pill {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.72rem;
-      padding: 3px 8px;
-      border-radius: 6px;
-      font-weight: 600;
-      display: inline-block;
-    }
-    .pill-pk { background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); }
-    .pill-fk { background: rgba(129, 140, 248, 0.2); color: #818cf8; border: 1px solid rgba(129, 140, 248, 0.4); }
-    .pill-uk { background: rgba(251, 191, 36, 0.2); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.4); }
-    .pill-fixed { background: rgba(52, 211, 153, 0.2); color: #34d399; border: 1px solid rgba(52, 211, 153, 0.4); }
-    .pill-module { background: rgba(244, 114, 182, 0.2); color: #f472b6; border: 1px solid rgba(244, 114, 182, 0.4); }
-
-    /* Tables */
-    .schema-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.86rem;
-      margin-top: 12px;
-    }
-
-    .schema-table th, .schema-table td {
-      padding: 11px 14px;
-      border-bottom: 1px solid rgba(51, 65, 85, 0.5);
-      text-align: left;
-    }
-
-    .schema-table th {
-      background: rgba(30, 41, 59, 0.65);
-      color: var(--primary);
-      font-weight: 600;
-      font-size: 0.8rem;
+      padding: 2px 7px;
+      border-radius: 999px;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.04em;
     }
 
-    .schema-table tr:hover td {
-      background: rgba(56, 189, 248, 0.04);
+    /* Modül Renk Kodları */
+    .mod-auth { background: rgba(99, 102, 241, 0.2); color: #a5b4fc; border: 1px solid rgba(99, 102, 241, 0.4); }
+    .mod-stock { background: rgba(14, 165, 233, 0.2); color: #7dd3fc; border: 1px solid rgba(14, 165, 233, 0.4); }
+    .mod-partner { background: rgba(245, 158, 11, 0.2); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.4); }
+    .mod-order { background: rgba(168, 85, 247, 0.2); color: #d8b4fe; border: 1px solid rgba(168, 85, 247, 0.4); }
+    .mod-waybill { background: rgba(6, 182, 212, 0.2); color: #67e8f9; border: 1px solid rgba(6, 182, 212, 0.4); }
+    .mod-invoice { background: rgba(16, 185, 129, 0.2); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.4); }
+    .mod-mfg { background: rgba(244, 63, 94, 0.2); color: #fda4af; border: 1px solid rgba(244, 63, 94, 0.4); }
+    .mod-view { background: rgba(234, 179, 8, 0.2); color: #fde047; border: 1px solid rgba(234, 179, 8, 0.4); }
+
+    /* Kolon Listesi */
+    .columns-list {
+      padding: 4px 0;
+      max-height: 280px;
+      overflow-y: auto;
     }
+
+    .columns-list::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .columns-list::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+
+    .column-row {
+      padding: 5px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.74rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+      transition: background 0.1s;
+    }
+
+    .column-row:hover {
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .col-left {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .col-key {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 1px 4px;
+      border-radius: 3px;
+      min-width: 22px;
+      text-align: center;
+    }
+
+    .key-pk { background: #b45309; color: #fef3c7; }
+    .key-fk { background: #0369a1; color: #e0f2fe; }
+    .key-uk { background: #7e22ce; color: #f3e8ff; }
+    .key-none { opacity: 0; }
 
     .col-name {
       font-family: 'JetBrains Mono', monospace;
-      font-weight: 600;
-      color: #f1f5f9;
+      color: #e2e8f0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-weight: 500;
     }
 
     .col-type {
       font-family: 'JetBrains Mono', monospace;
-      color: var(--secondary);
-      font-size: 0.8rem;
+      font-size: 0.68rem;
+      color: var(--type-color);
+      white-space: nowrap;
+      margin-left: 10px;
     }
 
-    /* Grids & Cards */
-    .grid-2 {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
-      gap: 20px;
-    }
-
-    .grid-3 {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
-      gap: 20px;
-    }
-
-    .card-box {
-      background: rgba(15, 23, 42, 0.75);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 22px;
+    /* Detay Yan Paneli */
+    #detailPanel {
+      position: fixed;
+      right: -420px;
+      top: 58px;
+      width: 400px;
+      height: calc(100vh - 58px);
+      background: rgba(15, 23, 42, 0.98);
+      backdrop-filter: blur(20px);
+      border-left: 1px solid #334155;
+      box-shadow: -10px 0 30px rgba(0, 0, 0, 0.7);
+      z-index: 100;
+      transition: right 0.25s cubic-bezier(0.16, 1, 0.3, 1);
       display: flex;
       flex-direction: column;
-      gap: 12px;
-      transition: all 0.25s ease;
     }
 
-    .card-box:hover {
-      border-color: var(--accent);
-      box-shadow: 0 10px 30px var(--accent-glow);
+    #detailPanel.open {
+      right: 0;
     }
 
-    .card-title {
-      font-size: 1.05rem;
-      font-weight: 700;
-      color: #fff;
+    .panel-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid #334155;
       display: flex;
       align-items: center;
-      gap: 8px;
+      justify-content: space-between;
     }
 
-    .card-desc {
-      font-size: 0.88rem;
-      color: #cbd5e1;
-      line-height: 1.6;
-    }
-
-    .code-box {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.82rem;
-      background: rgba(6, 10, 19, 0.8);
-      border: 1px solid rgba(51, 65, 85, 0.7);
-      padding: 10px 14px;
-      border-radius: 8px;
-      color: #38bdf8;
-      overflow-x: auto;
-    }
-
-    /* Search bar */
-    .search-input {
-      background: rgba(15, 23, 42, 0.8);
-      border: 1px solid var(--border);
+    .panel-header h2 {
+      font-size: 1.1rem;
+      font-weight: 700;
       color: #fff;
-      padding: 8px 16px;
-      border-radius: 8px;
-      font-size: 0.85rem;
-      outline: none;
-      width: 260px;
-      transition: all 0.2s;
     }
 
-    .search-input:focus {
-      border-color: var(--primary);
-      box-shadow: 0 0 10px var(--primary-glow);
-    }
-
-    footer {
-      border-top: 1px solid var(--border);
-      padding: 24px;
-      text-align: center;
-      font-size: 0.85rem;
+    .close-btn {
+      background: transparent;
+      border: none;
       color: var(--text-muted);
-      background: rgba(7, 11, 20, 0.95);
-      margin-top: 40px;
+      font-size: 1.2rem;
+      cursor: pointer;
+    }
+
+    .panel-body {
+      padding: 20px;
+      overflow-y: auto;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .panel-sec-title {
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-dim);
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .panel-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.76rem;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .panel-table th {
+      text-align: left;
+      padding: 6px 8px;
+      color: var(--text-muted);
+      border-bottom: 1px solid #334155;
+    }
+
+    .panel-table td {
+      padding: 6px 8px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      color: #cbd5e1;
+    }
+
+    .sql-box {
+      background: #090e1a;
+      border: 1px solid #1e293b;
+      padding: 12px;
+      border-radius: 6px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      color: #93c5fd;
+      overflow-x: auto;
+      white-space: pre-wrap;
+    }
+
+    /* Alt Durum Çubuğu */
+    footer {
+      height: 32px;
+      background: #070b14;
+      border-top: 1px solid #1e293b;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      font-family: 'JetBrains Mono', monospace;
+      z-index: 50;
+    }
+
+    .footer-left {
+      display: flex;
+      gap: 16px;
+    }
+
+    .footer-dot {
+      display: inline-block;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #10b981;
+      margin-right: 5px;
     }
   </style>
 </head>
 <body>
 
-  <!-- Header -->
+  <!-- Üst Bar -->
   <header>
-    <div class="header-brand">
+    <div class="brand">
       <span class="logo-badge">MiniERP</span>
-      <h1>Kurumsal Mimari, ER Modeli & Sistem İşleyiş Motoru</h1>
+      <h1>Varlık-İlişki (ER) Şema Gezgini</h1>
+      <span>PostgreSQL 16 Multi-Tenant DDL</span>
     </div>
-    <div class="status-badge">
-      <span class="pulse-dot"></span>
-      <span>v3.0 - Full 25-Tablo ER (1 Master + 24 Tenant) + Hazine/Kasa-Banka + Numaratör + BOM + Fatura</span>
+
+    <!-- Modül Filtre Butonları -->
+    <div class="module-filters">
+      <button class="filter-btn active" onclick="filterModule('ALL')">Tümü (25)</button>
+      <button class="filter-btn" onclick="filterModule('AUTH')">Kimlik (3)</button>
+      <button class="filter-btn" onclick="filterModule('STOCK')">Stok & Ürün (5)</button>
+      <button class="filter-btn" onclick="filterModule('PARTNER')">Cari (1)</button>
+      <button class="filter-btn" onclick="filterModule('ORDER')">Teklif & Sipariş (4)</button>
+      <button class="filter-btn" onclick="filterModule('WAYBILL')">İrsaliye (2)</button>
+      <button class="filter-btn" onclick="filterModule('INVOICE')">Fatura & Kasa (4)</button>
+      <button class="filter-btn" onclick="filterModule('MFG')">Üretim (4)</button>
+      <button class="filter-btn" onclick="filterModule('VIEW')">Görünümler (2)</button>
+    </div>
+
+    <!-- Arama ve Yakınlaştırma -->
+    <div class="toolbar-actions">
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="searchInput" placeholder="Tablo veya kolon ara..." oninput="handleSearch(this.value)">
+      </div>
+      <button class="tool-btn" onclick="zoom(1.2)" title="Yakınlaştır">🔍 (+)</button>
+      <button class="tool-btn" onclick="zoom(0.8)" title="Uzaklaştır">🔍 (-)</button>
+      <button class="tool-btn" onclick="resetView()" title="Görünümü Sıfırla">↺ %100</button>
+      <button class="tool-btn" onclick="fitView()" title="Ekrana Sığdır">⛶ Sığdır</button>
+      <span class="zoom-text" id="zoomLevel">%90</span>
     </div>
   </header>
 
-  <!-- Navigation Tabs -->
-  <nav class="tabs-nav">
-    <button class="tab-btn active" onclick="switchTab('er-diagram')">📊 1. İnteraktif ER Modeli (25 Tablo)</button>
-    <button class="tab-btn" onclick="switchTab('process-flow')">🔄 2. Sistemin İşleyişi & B2B Süreç Akışı</button>
-    <button class="tab-btn" onclick="switchTab('db-dictionary')">🗄️ 3. Veritabanı Tasarımı & Tablo Sözlüğü</button>
-    <button class="tab-btn" onclick="switchTab('sector-architectures')">🌐 4. 10 Farklı Sektör Uyumluluk Mimarisi & Şablonları</button>
-    <button class="tab-btn" onclick="switchTab('solid-patterns')">🛡️ 5. SOLID Prensipleri & Design Patterns</button>
-    <button class="tab-btn" onclick="switchTab('erp-roadmap')">🚀 6. Gelecek & Gerçekçi Kurumsal Modüller</button>
-  </nav>
-
-  <main>
-    <!-- TAB 1: ER DİYAGRAMI -->
-    <div id="tab-er-diagram" class="tab-content active">
-      <div class="section-header">
-        <div>
-          <h2 class="section-title">📊 PostgreSQL Çok Kiracılı Varlık-İlişki (ER) Modeli</h2>
-          <p class="section-desc">Master (Public) ve Kiracı (Tenant) Şemalarındaki 25 Temel Tablonun İlişki Ağı (Kasa & Banka, Numaratör, Üretim Reçetesi BOM, İş Emirleri, Fatura & Ödemeler Dahil)</p>
-        </div>
-      </div>
-
-      <div class="glass-box">
-        <div class="toolbar">
-          <button class="tool-btn" onclick="zoomIn()">🔍 Yakınlaştır (+)</button>
-          <button class="tool-btn" onclick="zoomOut()">🔍 Uzaklaştır (-)</button>
-          <button class="tool-btn" onclick="resetZoom()">↺ Sıfırla (%100)</button>
-          <span class="zoom-level" id="zoomLevelIndicator">%100</span>
-          <span class="pan-hint">🖱️ Tıkla & Sürükle | ⚙️ Fare Tekerleğiyle Yakınlaştır</span>
-        </div>
-
-        <div class="diagram-container" id="diagramWrapper">
-          <div id="panZoomCanvas" class="pan-zoom-canvas">
-            <pre class="mermaid" id="mermaidGraph">
-erDiagram
-    %% Master Schema (public)
-    TENANTS {
-        bigint id PK
-        varchar tenant_id UK "Kiracı Kodu (tenant_tekstil)"
-        varchar schema_name UK "PostgreSQL Şema Adı"
-        varchar company_name "Resmi Şirket Ünvanı"
-        boolean is_active "Aktiflik Durumu"
-        timestamp created_at
-        timestamp updated_at
-        bigint version
-    }
-
-    %% Tenant Schema: Kimlik & Güvenlik
-    USERS {
-        bigint id PK
-        varchar username UK "Kullanıcı Adı"
-        varchar email UK "E-Posta Adresi"
-        varchar password_hash "BCrypt Şifre Hash"
-        varchar full_name "Ad Soyad"
-        varchar role "ROLE_ADMIN, ROLE_MANAGER, ROLE_USER"
-        boolean is_active "Aktiflik"
-        timestamp created_at
-        timestamp updated_at
-        bigint version
-    }
-
-    AUDIT_LOGS {
-        bigint id PK
-        varchar action "CREATE, UPDATE, STATUS_CHANGE vb."
-        varchar entity_type "Order, Product, Invoice, Waybill"
-        bigint entity_id "İlgili Kaydın ID'si"
-        varchar performed_by "Kullanıcı veya SYSTEM"
-        varchar ip_address "İstemci IP Adresi"
-        varchar user_agent "API İstemci / Tarayıcı"
-        jsonb details "Eski ve Yeni Değer Diff (JSONB)"
-        timestamp performed_at
-    }
-
-    DOCUMENT_SEQUENCES {
-        bigint id PK
-        varchar document_type "Belge Tipi (ORDER, WAYBILL, INVOICE, PAYMENT)"
-        varchar prefix "Ön Ek (SIP, IRS, FTR, ODM)"
-        integer year "Mali Yıl (2026)"
-        bigint last_number "Son Üretilen Sıra No"
-        timestamp created_at
-        timestamp updated_at
-    }
-
-    %% Ürün, Varyant & Kategori Modülü
-    CATEGORIES {
-        bigint id PK
-        varchar code UK "Kategori Kodu (KAT-DOKUMA)"
-        varchar name "Kategori Adı"
-        text description
-        boolean is_active "Aktiflik"
-        timestamp created_at
-        timestamp updated_at
-        bigint version
-    }
-
-    PRODUCTS {
-        bigint id PK
-        bigint category_id FK "Kategori Referansı"
-        varchar code UK "Ürün Kodu (PRD-KMS-01)"
-        varchar name "Ana Ürün Şablon Adı"
-        varchar base_unit "Birim (ADET, TOP, METRE)"
-        numeric tax_rate "KDV Oranı (%)"
-        jsonb attributes "Dinamik Özellikler (Kumaş Eni, Gramaj)"
-        boolean is_active "Aktiflik"
-        timestamp created_at
-        timestamp updated_at
-        bigint version
-    }
-
-    PRODUCT_VARIANTS {
-        bigint id PK
-        bigint product_id FK "Ana Ürün Referansı"
-        varchar sku UK "Stok Kodu / SKU"
-        varchar barcode "EAN-13 Barkod"
-        varchar variant_name "Varyant Tanımı (Açık Mavi - 50m Top)"
-        numeric purchase_price "Alış Fiyatı"
-        numeric sale_price "Satış Fiyatı"
-        integer stock_quantity "Toplam Fiili Stok"
-        integer reserved_stock "Siparişlere Rezerve Stok"
-        jsonb attributes "Renk, Beden, Boyut"
-        timestamp created_at
-        timestamp updated_at
-        bigint version
-    }
-
-    %% Çoklu Depo & Stok Kütüğü Modülü
-    WAREHOUSES {
-        bigint id PK
-        varchar code UK "Depo Kodu (WH-01)"
-        varchar name "Depo Adı"
-        varchar location "Şehir / Bölge"
-        text address "Açık Adres"
-        boolean is_active "Aktiflik"
-        timestamp created_at
-        timestamp updated_at
-        bigint version
-    }
-
-    WAREHOUSE_STOCKS {
-        bigint id PK
-        bigint warehouse_id FK "Depo Referansı"
-        bigint variant_id FK "Varyant Referansı"
-        numeric quantity "Depo Bazlı Fiili Bakiye"
-        numeric reserved_stock "Depo Bazlı Rezerve Bakiye"
-        varchar shelf_location "Raf / Koridor Kodu"
-        timestamp created_at
-        timestamp updated_at
-        bigint version
-    }
-
-    STOCK_MOVEMENTS {
-        bigint id PK
-        varchar movement_number UK "Hareket No (SM-2026-0001)"
-        varchar movement_type "GİRİŞ, ÇIKIŞ, TRANSFER, SAYIM"
-        bigint source_warehouse_id FK "Kaynak Depo"
-        bigint target_warehouse_id FK "Hedef Depo"
-        bigint variant_id FK "Varyant Referansı"
-        numeric quantity "Hareket Miktarı"
-        varchar reference_type "WAYBILL, ORDER, INITIAL_STOCK"
-        bigint reference_id "İrsaliye/Sipariş ID"
-        varchar performed_by "İşlemi Yapan"
-        timestamp created_at
-        timestamp updated_at
-        bigint version
-    }
-
-    %% Ticari Partnerler (Cari Hesaplar)
-    BUSINESS_PARTNERS {
-        bigint id PK
-        varchar code UK "Cari Kodu (CAR-2026-0001)"
-        varchar partner_type "CUSTOMER, SUPPLIER, BOTH"
-        varchar name "Kısa İsim"
-        varchar company_title "Resmi Şirket Ünvanı"
-        varchar tax_number "Vergi Numarası"
-        varchar tax_office "Vergi Dairesi"
-        varchar email "E-Posta"
-        varchar phone "Telefon"
-        text address "Adres"
-        jsonb metadata "Vade Günü, Kredi Limiti"
-        boolean is_active "Aktiflik"
-        timestamp created_at
-        timestamp updated_at
-        bigint version
-    }
-
-    %% B2B Teklif & Sipariş Yönetimi
-    QUOTATIONS {
-        bigint id PK
-        varchar quotation_number UK "Teklif No (QT-2026-001)"
-        varchar type "SALES, PURCHASE"
-        bigint partner_id FK "Cari Hesap Referansı"
-        varchar status "DRAFT, SENT, ACCEPTED, CONVERTED"
-        varchar currency "TRY, USD, EUR"
-        numeric exchange_rate "İşlem Anı Kuru"
-        numeric subtotal_amount "Ara Toplam"
-        numeric tax_amount "KDV Tutarı"
-        numeric discount_amount "İskonto Tutarı"
-        numeric total_amount "Genel Toplam"
-        timestamp issue_date
-        timestamp valid_until
-        timestamp created_at
-        timestamp updated_at
-        bigint version
-    }
-
-    QUOTATION_ITEMS {
-        bigint id PK
-        bigint quotation_id FK "Teklif Referansı"
-        bigint variant_id FK "Varyant Referansı"
-        numeric quantity "Miktar"
-        numeric unit_price "Birim Fiyat"
-        numeric tax_rate "KDV Oranı (%)"
-        numeric discount_rate "İskonto Oranı (%)"
-        numeric subtotal "Kalem Tutarı"
-        timestamp created_at
-        timestamp updated_at
-        bigint version
-    }
-
-    ORDERS {
-        bigint id PK
-        varchar order_number UK "Sipariş No (SIP-SAT-2026-001)"
-        varchar order_type "SALES_ORDER, PURCHASE_ORDER"
-        bigint partner_id FK "Cari Hesap Referansı"
-        bigint quotation_id FK "Teklif Referansı"
-        varchar status "DRAFT, CONFIRMED, COMPLETED, CANCELLED"
-        varchar currency "TRY, USD, EUR"
-        numeric total_amount "Sipariş Genel Toplamı"
-        timestamp order_date
-        timestamp delivery_date
-        timestamp created_at
-        timestamp updated_at
-        bigint version
-    }
-
-    ORDER_ITEMS {
-        bigint id PK
-        bigint order_id FK "Sipariş Referansı"
-        bigint variant_id FK "Varyant Referansı"
-        numeric quantity "Sipariş Miktarı"
-        numeric delivered_quantity "Teslim Edilen Miktar"
-        numeric unit_price "Birim Fiyat"
-        numeric subtotal "Kalem Tutarı"
-        timestamp created_at
-        timestamp updated_at
-        bigint version
-    }
-
-    %% İrsaliye & Sevkiyat Modülü
-    WAYBILLS {
-        bigint id PK
-        varchar waybill_number UK "İrsaliye No (IRS-SVK-2026-001)"
-        varchar type "DISPATCH, RECEIPT"
-        bigint partner_id FK "Cari Hesap Referansı"
-        bigint order_id FK "Sipariş Referansı"
-        bigint source_warehouse_id FK "Çıkış Deposu"
-        bigint target_warehouse_id FK "Varış Deposu"
-        varchar status "DRAFT, DISPATCHED, DELIVERED, CANCELLED"
-        varchar carrier_company "Taşıyıcı Lojistik Firması"
-        varchar tracking_number "Kargo Takip No"
-        varchar vehicle_plate "Araç Plakası"
-        timestamp dispatch_date
-        timestamp created_at
-        timestamp updated_at
-        bigint version
-    }
-
-    WAYBILL_ITEMS {
-        bigint id PK
-        bigint waybill_id FK "İrsaliye Referansı"
-        bigint order_item_id FK "Sipariş Kalemi Eşleşmesi"
-        bigint variant_id FK "Varyant Referansı"
-        integer quantity "Sevk Edilen Adet"
-        numeric unit_price "Birim Fiyat"
-        timestamp created_at
-        timestamp updated_at
-        bigint version
-    }
-
-    %% Fatura & Tahsilat/Ödeme Modülü
-    INVOICES {
-        bigint id PK
-        varchar invoice_number UK "Fatura No (FTR-SAT-2026-001)"
-        varchar invoice_type "SALES_INVOICE, PURCHASE_INVOICE"
-        bigint partner_id FK "Cari Hesap Referansı"
-        bigint order_id FK "Sipariş Referansı"
-        bigint waybill_id FK "İrsaliye Referansı"
-        varchar status "DRAFT, APPROVED, PARTIALLY_PAID, PAID"
-        varchar currency "TRY, USD, EUR"
-        numeric total_amount "Fatura Genel Tutarı"
-        numeric paid_amount "Ödenen Tutar"
-        numeric remaining_amount "Kalan Bakiye"
-        timestamp invoice_date
-        timestamp due_date
-        timestamp created_at
-        timestamp updated_at
-        bigint version
-    }
-
-    INVOICE_ITEMS {
-        bigint id PK
-        bigint invoice_id FK "Fatura Referansı"
-        bigint variant_id FK "Varyant Referansı"
-        bigint waybill_item_id FK "İrsaliye Kalemi Eşleşmesi"
-        numeric quantity "Faturalaşan Miktar"
-        numeric unit_price "Birim Fiyat"
-        numeric tax_rate "KDV Oranı (%)"
-        numeric subtotal "Kalem Tutarı"
-        timestamp created_at
-        timestamp updated_at
-        bigint version
-    }
-
-    PAYMENTS {
-        bigint id PK
-        varchar payment_number UK "Makbuz No (ODM-2026-001)"
-        varchar payment_type "INCOMING, OUTGOING"
-        bigint invoice_id FK "Fatura Referansı"
-        bigint partner_id FK "Cari Hesap Referansı"
-        bigint account_id FK "Kasa / Banka Hesabı"
-        numeric amount "Ödeme Tutarı"
-        varchar currency "TRY, USD, EUR"
-        varchar payment_method "BANK_TRANSFER, CASH, CREDIT_CARD"
-        varchar referenceNumber "Banka Dekont / Ref No"
-        varchar status "COMPLETED, PENDING, CANCELLED"
-        timestamp payment_date
-        timestamp created_at
-        timestamp updated_at
-        bigint version
-    }
-
-    %% Hazine, Kasa & Banka Modülü
-    TREASURY_ACCOUNTS {
-        bigint id PK
-        varchar account_code UK "Hesap Kodu (KSA-01, BNK-01)"
-        varchar account_name "Hesap Adı (Merkez Kasa, Garanti TL)"
-        varchar account_type "CASH, BANK"
-        varchar currency "TRY, USD, EUR"
-        numeric current_balance "Anlık Güncel Bakiye"
-        varchar bank_name "Banka Adı"
-        varchar branch_code "Şube Kodu"
-        varchar iban "IBAN No"
-        boolean is_active "Aktiflik"
-        timestamp created_at
-        timestamp updated_at
-        bigint version
-    }
-
-    %% Üretim Reçetesi (BOM) & İş Emirleri Modülü (Manufacturing)
-    BILL_OF_MATERIALS {
-        bigint id PK
-        varchar bom_code UK "Reçete Kodu (BOM-DNM-001)"
-        varchar name "Reçete Tanımı (Denim Pantolon İmalatı)"
-        bigint target_variant_id FK "Üretilecek Mamul Varyantı"
-        numeric base_quantity "Parti Üretim Miktarı"
-        varchar unit "Birim (ADET, KG, METRE)"
-        varchar industry_type "TEXTILE, FOOD, AUTOMOTIVE..."
-        boolean is_active "Aktiflik"
-        timestamp created_at
-        timestamp updated_at
-        bigint version
-    }
-
-    BOM_ITEMS {
-        bigint id PK
-        bigint bom_id FK "Bağlı Reçete Referansı"
-        bigint component_variant_id FK "Hammadde/Sarfiyat Varyantı"
-        numeric quantity "1 Birim İçin Gerekli Sarfiyat"
-        varchar unit "Birim (METRE, ADET, KG, LITRE)"
-        numeric scrap_rate "Fire Oranı (%)"
-        integer sequence_order "Üretim İstasyon Sırası"
-        timestamp created_at
-        timestamp updated_at
-        bigint version
-    }
-
-    WORK_ORDERS {
-        bigint id PK
-        varchar order_number UK "İş Emri No (WO-2026-001)"
-        bigint bom_id FK "Kullanılan Üretim Reçetesi"
-        bigint product_variant_id FK "Üretilecek Nihai Mamul"
-        bigint warehouse_id FK "Üretim/Mamul Giriş Deposu"
-        bigint order_id FK "Varsa Kaynak Satış Siparişi"
-        numeric planned_quantity "Planlanan Üretim Miktarı"
-        numeric produced_quantity "Tamamlanan Üretim Miktarı"
-        varchar status "PLANNED, IN_PROGRESS, COMPLETED, CANCELLED"
-        varchar priority "LOW, MEDIUM, HIGH, URGENT"
-        timestamp start_date
-        timestamp end_date
-        timestamp created_at
-        timestamp updated_at
-        bigint version
-    }
-
-    WORK_ORDER_ITEMS {
-        bigint id PK
-        bigint work_order_id FK "İş Emri Referansı"
-        bigint component_variant_id FK "Sarf Edilen Hammadde"
-        numeric required_quantity "Gereken Sarfiyat Miktarı"
-        numeric consumed_quantity "Fiilen Tüketilen Miktar"
-        varchar unit "Birim"
-        timestamp created_at
-        timestamp updated_at
-        bigint version
-    }
-
-    %% İlişkiler
-    CATEGORIES ||--o{ PRODUCTS : "kapsar"
-    PRODUCTS ||--|{ PRODUCT_VARIANTS : "sahiptir"
-    PRODUCT_VARIANTS ||--o{ WAREHOUSE_STOCKS : "stok_kaydı"
-    WAREHOUSES ||--o{ WAREHOUSE_STOCKS : "barındırır"
-    PRODUCT_VARIANTS ||--o{ STOCK_MOVEMENTS : "hareket_görür"
-    WAREHOUSES ||--o{ STOCK_MOVEMENTS : "kaynak_hedef"
-
-    BUSINESS_PARTNERS ||--o{ QUOTATIONS : "teklif_alır_verir"
-    QUOTATIONS ||--|{ QUOTATION_ITEMS : "kalemleri"
-    PRODUCT_VARIANTS ||--o{ QUOTATION_ITEMS : "teklif_edilir"
-
-    QUOTATIONS ||--o| ORDERS : "siparişe_dönüşür"
-    BUSINESS_PARTNERS ||--o{ ORDERS : "sipariş_eder"
-    ORDERS ||--|{ ORDER_ITEMS : "kalemleri"
-    PRODUCT_VARIANTS ||--o{ ORDER_ITEMS : "sipariş_kalemi"
-
-    %% Üretim (Manufacturing) İlişkileri
-    PRODUCT_VARIANTS ||--o{ BILL_OF_MATERIALS : "üretilen_mamul"
-    BILL_OF_MATERIALS ||--|{ BOM_ITEMS : "reçete_bileşenleri"
-    PRODUCT_VARIANTS ||--o{ BOM_ITEMS : "sarf_edilen_hammadde"
-
-    BILL_OF_MATERIALS ||--o{ WORK_ORDERS : "üretim_reçetesi"
-    PRODUCT_VARIANTS ||--o{ WORK_ORDERS : "üretilen_hedef_mamul"
-    WAREHOUSES ||--o{ WORK_ORDERS : "üretim_deposu"
-    ORDERS ||--o{ WORK_ORDERS : "siparişe_bağlı_üretim"
-
-    WORK_ORDERS ||--|{ WORK_ORDER_ITEMS : "gerçekleşen_sarfiyatlar"
-    PRODUCT_VARIANTS ||--o{ WORK_ORDER_ITEMS : "tüketilen_stok"
-
-    ORDERS ||--o{ WAYBILLS : "sevk_edilir"
-    BUSINESS_PARTNERS ||--o{ WAYBILLS : "alıcı_satıcı_cari"
-    WAREHOUSES ||--o{ WAYBILLS : "çıkış_deposu"
-    WAYBILLS ||--|{ WAYBILL_ITEMS : "kalemleri"
-    ORDER_ITEMS ||--o{ WAYBILL_ITEMS : "kısmi_sevk_bağı"
-    PRODUCT_VARIANTS ||--o{ WAYBILL_ITEMS : "sevk_edilen"
-
-    WAYBILLS ||--o{ INVOICES : "faturalaşır"
-    ORDERS ||--o{ INVOICES : "doğrudan_faturalaşır"
-    BUSINESS_PARTNERS ||--o{ INVOICES : "borçlanan_alacaklanan_cari"
-    INVOICES ||--|{ INVOICE_ITEMS : "fatura_kalemleri"
-    PRODUCT_VARIANTS ||--o{ INVOICE_ITEMS : "fatura_edilen"
-    WAYBILL_ITEMS ||--o{ INVOICE_ITEMS : "irsaliye_kalem_bağı"
-
-    INVOICES ||--o{ PAYMENTS : "tahsilat_yapılır"
-    BUSINESS_PARTNERS ||--o{ PAYMENTS : "ödeme_yapan_alan"
-    TREASURY_ACCOUNTS ||--o{ PAYMENTS : "bakiye_hareketi"
-            </pre>
-          </div>
-        </div>
-      </div>
+  <!-- Sonsuz Canvas -->
+  <div id="viewport">
+    <div id="canvasWorld">
+      <!-- SVG İlişki Çizgileri -->
+      <svg id="svgConnections"></svg>
+      <!-- HTML Tablo Kartları Dinamik Oluşturulur -->
+      <div id="tablesLayer"></div>
     </div>
+  </div>
 
-    <!-- TAB 2: SİSTEMİN İŞLEYİŞİ & B2B SÜREÇ AKIŞI -->
-    <div id="tab-process-flow" class="tab-content">
-      <div class="section-header">
-        <div>
-          <h2 class="section-title">🔄 MiniERP Uçtan Uca B2B Süreç Yaşam Döngüsü & İşleyiş Motoru</h2>
-          <p class="section-desc">Fiyat Teklifinden Tahsilat Makbuzuna ve Stok Düşümüne Kadar Adım Adım İş Akışı</p>
-        </div>
+  <!-- Detay Yan Paneli -->
+  <div id="detailPanel">
+    <div class="panel-header">
+      <div>
+        <h2 id="panelTitle">Tablo Detayı</h2>
+        <span id="panelSchema" style="font-size:0.75rem; color:#38bdf8; font-family:'JetBrains Mono', monospace;">tenant şeması</span>
       </div>
-
-      <!-- 6 Adımlı İşlem Kartları (Üretim / İmalat Döngüsü Dahil) -->
-      <div class="workflow-grid">
-        <div class="step-card">
-          <div class="step-header">
-            <div class="step-num">1</div>
-            <span class="step-badge pill-pk">QUOTATION</span>
-          </div>
-          <h3 class="step-title">Fiyat Teklifi (Quotation)</h3>
-          <p class="step-desc">
-            Müşteri carisi seçilir, varyantlar, birim fiyat, iskonto ve KDV belirlenir. Durum <code>DRAFT</code> $\rightarrow$ <code>SENT</code> $\rightarrow$ <code>ACCEPTED</code>. Kabul edildiğinde tek tıkla siparişe dönüşür.
-          </p>
-          <div class="step-event">
-            Dönüşüm: <code>Quotation.status = CONVERTED</code>
-          </div>
-        </div>
-
-        <div class="step-card">
-          <div class="step-header">
-            <div class="step-num">2</div>
-            <span class="step-badge pill-uk">ORDER & EDA</span>
-          </div>
-          <h3 class="step-title">Sipariş & Stok Rezervasyonu</h3>
-          <p class="step-desc">
-            Sipariş onaylandığında (<code>CONFIRMED</code>), asenkron <strong>OrderConfirmedEvent</strong> fırlatılır. Depo modülü satılabilir stoktan düşüp <strong>Rezerve Stok</strong> hanesine aktarır. İptalde rezerv iade edilir.
-          </p>
-          <div class="step-event">
-            Event: <code>OrderConfirmedEvent</code> (RabbitMQ)
-          </div>
-        </div>
-
-        <div class="step-card">
-          <div class="step-header">
-            <div class="step-num">3</div>
-            <span class="step-badge pill-module">MANUFACTURING & BOM</span>
-          </div>
-          <h3 class="step-title">Üretim Reçetesi (BOM) & İş Emri</h3>
-          <p class="step-desc">
-            Sipariş veya stok takviyesi için İş Emri (<code>WO-2026-xxx</code>) açılır. Reçetedeki bileşenler doğrulanır. Üretim tamamlandığında hammaddeler stoktan otomatik düşer, nihai mamul depoya eklenir.
-          </p>
-          <div class="step-event">
-            İşlem: <code>completeWorkOrder()</code> (Stok Düş/Gir)
-          </div>
-        </div>
-
-        <div class="step-card">
-          <div class="step-header">
-            <div class="step-num">4</div>
-            <span class="step-badge pill-fixed">WAYBILL & DISPATCH</span>
-          </div>
-          <h3 class="step-title">İrsaliye & Fiziki Stok Çıkışı</h3>
-          <p class="step-desc">
-            Siparişten veya mamul deposundan sevk irsaliyesi yola çıktığında (<code>DISPATCHED</code>), <strong>WaybillDispatchedEvent</strong> fırlatılır. Depodan fiziki stok düşülür, rezerve stok temizlenir ve bağlı sipariş <code>COMPLETED</code> olur.
-          </p>
-          <div class="step-event">
-            Event: <code>WaybillDispatchedEvent</code> (Fulfillment)
-          </div>
-        </div>
-
-        <div class="step-card">
-          <div class="step-header">
-            <div class="step-num">5</div>
-            <span class="step-badge pill-pk">INVOICE & LEDGER</span>
-          </div>
-          <h3 class="step-title">Faturalama & Cari Borç</h3>
-          <p class="step-desc">
-            Sevk edilen irsaliye tek tıkla resmi satış faturasına dönüştürülür. Fatura onaylandığında (<code>APPROVED</code>), cari hesabın borç/alacak hanesine tahakkuk eder ve ödeme vadesi başlar.
-          </p>
-          <div class="step-event">
-            Etki: <code>Partner.totalDebit += TotalAmount</code>
-          </div>
-        </div>
-
-        <div class="step-card">
-          <div class="step-header">
-            <div class="step-num">6</div>
-            <span class="step-badge pill-fixed">PAYMENT & STATEMENT</span>
-          </div>
-          <h3 class="step-title">Tahsilat & Cari Ekstre</h3>
-          <p class="step-desc">
-            Banka havalesi veya kasa ile ödeme alındığında fatura bakiyesi kapatılır (<code>PAID</code>). Cari hesap ekstresinde kronolojik hareket satırı ve kümülatif bakiye (Running Balance) üretilir.
-          </p>
-          <div class="step-event">
-            Etki: <code>Invoice.remainingAmount = 0.00</code>
-          </div>
-        </div>
-      </div>
-
-      <!-- Mermaid Sequence Diagram (Uçtan Uca Mesajlaşma) -->
-      <div class="glass-box" style="margin-bottom: 24px;">
-        <h3 class="card-title" style="margin-bottom: 14px;">📡 Modüller Arası Uçtan Uca Asenkron Mesajlaşma & Üretim Entegrasyonu (Sequence Diagram)</h3>
-        <pre class="mermaid">
-sequenceDiagram
-    autonumber
-    actor User as Kullanıcı / Müşteri
-    participant QM as Teklif Modülü
-    participant OM as Sipariş Modülü
-    participant MM as Üretim & BOM Modülü
-    participant MQ as RabbitMQ / Event Bus
-    participant IM as Stok & Depo Modülü
-    participant WM as İrsaliye Modülü
-    participant FM as Fatura & Finans Modülü
-
-    User->>QM: Teklif Oluştur & Kabul Et (ACCEPTED)
-    User->>OM: "Siparişe Dönüştür" (createOrderFromQuotation)
-    OM-->>QM: Teklif durumunu CONVERTED yap
-    User->>OM: Siparişi Onayla (CONFIRMED)
-    OM->>MQ: OrderConfirmedEvent yayınla (Topic Exchange)
-    MQ->>IM: Asenkron Stok Rezervasyon Tüketimi
-    Note over IM: Satılabilir Stok Azalır<br/>Rezerve Stok Artar
-
-    opt İmalat & Üretim Gerekiyorsa (Make-to-Order)
-        User->>MM: Siparişten İş Emri Aç (createWorkOrder)
-        MM->>MM: BOM Reçetesi Bileşenlerini Hesapla
-        User->>MM: İş Emrini Başlat (IN_PROGRESS)
-        User->>MM: İş Emrini Tamamla (COMPLETED)
-        MM->>IM: Reçetedeki Hammaddeleri Depodan Düş (StockMovement OUT)
-        MM->>IM: Üretilen Nihai Mamulü Stoğa Ekle (StockMovement IN)
-        Note over IM: Hammadde Stoğu Azalır<br/>Mamul Ürün Stoğu Artar
-    end
-
-    User->>WM: Siparişten İrsaliye Türet (createWaybillFromOrder)
-    User->>WM: İrsaliyeyi Sevk Et (DISPATCHED)
-    WM->>MQ: WaybillDispatchedEvent yayınla
-    MQ->>IM: Asenkron Fiziki Stok Çıkışı (Fulfillment)
-    Note over IM: Fiili Depo Stoğu Düşer<br/>Rezerve Stok Sıfırlanır<br/>StockMovement Kaydedilir
-    WM-->>OM: Bağlı Siparişi COMPLETED Yap
-    User->>FM: İrsaliyeden Fatura Oluştur (createInvoiceFromWaybill)
-    FM-->>User: Fatura Taslağı (FTR-SAT-xxx)
-    User->>FM: Tahsilat / Ödeme Ekle (addPayment)
-    Note over FM: Fatura Kalanı Düşer<br/>Cari Ekstre Kümülatif Bakiyesi Güncellenir
-        </pre>
-      </div>
-
-      <!-- 3-Kiracılı Entegre B2B Tedarik Zinciri -->
-      <div class="glass-box">
-        <h3 class="card-title" style="margin-bottom: 14px;">🏭 3 Kiracılı Entegre Dikey B2B Tedarik Zinciri Döngüsü</h3>
-        <pre class="mermaid">
-flowchart LR
-    subgraph T1 ["Kiracı 1: Atlas Tekstil A.Ş. (Hammadde Üreticisi)"]
-        A_Depo[Ham Pamuk & İplik Deposu]
-        A_Urun[Saf Pamuk Dokuma Kumaş Topu]
-        A_Satis[Satış Siparişi & İrsaliyesi]
-    end
-
-    subgraph T2 ["Kiracı 2: Vogue Hazır Giyim Ltd. (Konfeksiyon İmalatçısı)"]
-        V_Alis[Kumaş Alış İrsaliyesi & Faturası]
-        V_Uretim[İmalat: Oxford Gömlek & Denim Pantolon]
-        V_Satis[Toptan Satış Siparişi & İrsaliyesi]
-    end
-
-    subgraph T3 ["Kiracı 3: Trendline Mağazacılık A.Ş. (Perakende & E-Ticaret)"]
-        TR_Kabul[Merkez Depo Mal Kabul İrsaliyesi]
-        TR_Magaza[Marmara Forum & Kanyon AVM Reyonları]
-        TR_Online[Trendyol & E-Ticaret Satışları]
-    end
-
-    A_Satis -->|Kumaş Sevk İrsaliyesi| V_Alis
-    V_Alis --> V_Uretim
-    V_Uretim --> V_Satis
-    V_Satis -->|Hazır Giyim Sevk İrsaliyesi| TR_Kabul
-    TR_Kabul --> TR_Magaza
-    TR_Kabul --> TR_Online
-
-    classDef t1 fill:#172554,stroke:#38bdf8,stroke-width:2px,color:#fff;
-    classDef t2 fill:#311042,stroke:#c084fc,stroke-width:2px,color:#fff;
-    classDef t3 fill:#064e3b,stroke:#34d399,stroke-width:2px,color:#fff;
-    class T1 t1;
-    class T2 t2;
-    class T3 t3;
-        </pre>
-      </div>
+      <button class="close-btn" onclick="closePanel()">✕</button>
     </div>
-
-    <!-- TAB 3: VERİTABANI MİMARİSİ & TABLO SÖZLÜĞÜ -->
-    <div id="tab-db-dictionary" class="tab-content">
-      <div class="section-header">
-        <div>
-          <h2 class="section-title">🗄️ PostgreSQL Veritabanı Mimarisi & Tablo Detay Sözlüğü</h2>
-          <p class="section-desc">Schema-per-Tenant Çok Kiracılı İzolasyon, İndeksleme ve 25 Tablonun Teknik Detayları (Kasa/Banka, Belge Numaratörü, Üretim Reçetesi BOM & İş Emirleri Dahil)</p>
-        </div>
-        <input type="text" id="tableFilterInput" class="search-input" placeholder="🔍 Tablo veya modül ara..." onkeyup="filterSchemaTable()">
-      </div>
-
-      <div class="grid-3" style="margin-bottom: 24px;">
-        <div class="card-box">
-          <span class="pill pill-fixed">PostgreSQL Schema-per-Tenant</span>
-          <h3 class="card-title">Fiziksel Veri İzolasyonu</h3>
-          <p class="card-desc">
-            Her kiracının verisi PostgreSQL'de ayrı bir şemada (<code>tenant_tekstil</code>, <code>tenant_moda</code> vb.) tutulur. Satır bazlı (tenant_id kolonlu) sistemlere göre kiracılar arası veri sızıntısını fiziksel düzeyde engeller.
-          </p>
-          <div class="code-box">connection.setSchema(tenantId);</div>
-        </div>
-
-        <div class="card-box">
-          <span class="pill pill-pk">Hibernate Multi-Tenancy</span>
-          <h3 class="card-title">Dinamik Bağlantı Yönlendirme</h3>
-          <p class="card-desc">
-            <code>MultiTenantConnectionProviderImpl</code> ve <code>CurrentTenantIdentifierResolverImpl</code> sınıfları, gelen her HTTP isteğindeki JWT token'dan veya <code>X-Tenant-ID</code> başlığından şemayı belirler.
-          </p>
-          <div class="code-box">TenantContext.getTenantId() -> search_path</div>
-        </div>
-
-        <div class="card-box">
-          <span class="pill pill-module">JSONB & GIN İndeksleri</span>
-          <h3 class="card-title">Esnek Ürün & Denetim Şeması</h3>
-          <p class="card-desc">
-            Ürün varyant özellikleri (renk, beden, kumaş eni) ve denetim loglarındaki eski/yeni farklar (diff) PostgreSQL <code>JSONB</code> tipinde saklanır ve <code>GIN</code> indeksleri ile milisaniyelik hızla sorgulanır.
-          </p>
-          <div class="code-box">CREATE INDEX idx_products_attr ON products USING gin(attributes);</div>
-        </div>
-      </div>
-
-      <div class="glass-box">
-        <h3 class="card-title" style="margin-bottom: 14px;">📑 25 Veritabanı Tablosunun Detay Sözlüğü (1 Master + 24 Tenant)</h3>
-        <table class="schema-table" id="schemaTable">
+    <div class="panel-body">
+      <div>
+        <div class="panel-sec-title">Kolonlar & Veri Tipleri</div>
+        <table class="panel-table">
           <thead>
-            <tr>
-              <th>Tablo Adı</th>
-              <th>Şema / Modül</th>
-              <th>Birincil / Yabancı Anahtarlar</th>
-              <th>Önemli Kolonlar ve Tipler</th>
-              <th>Açıklama ve İş Kuralları</th>
-            </tr>
+            <tr><th>Anahtar</th><th>Kolon Adı</th><th>Veri Tipi</th><th>Null?</th></tr>
           </thead>
-          <tbody>
-            <tr>
-              <td class="col-name">tenants</td>
-              <td><span class="pill pill-pk">Master (public)</span></td>
-              <td><span class="pill pill-pk">id PK</span>, <span class="pill pill-uk">tenant_id UK</span></td>
-              <td><span class="col-type">schema_name, company_name, is_active</span></td>
-              <td>Tüm kiracıların havuz kaydı. Kiracı eklendiğinde Flyway şemayı dinamik kurar.</td>
-            </tr>
-            <tr>
-              <td class="col-name">users</td>
-              <td><span class="pill pill-module">Tenant / Auth</span></td>
-              <td><span class="pill pill-pk">id PK</span>, <span class="pill pill-uk">username UK</span></td>
-              <td><span class="col-type">email (UK), password_hash, role</span></td>
-              <td>Kiracı içi kullanıcılar. Roller: <code>ROLE_ADMIN</code>, <code>ROLE_MANAGER</code>, <code>ROLE_USER</code>.</td>
-            </tr>
-            <tr>
-              <td class="col-name">audit_logs</td>
-              <td><span class="pill pill-module">Tenant / Güvenlik</span></td>
-              <td><span class="pill pill-pk">id PK</span></td>
-              <td><span class="col-type">action, entity_type, entity_id, details (JSONB)</span></td>
-              <td>Merkezi denetim günlüğü. Tüm tablolardaki CRUD farkları JSONB diff olarak burada toplanır.</td>
-            </tr>
-            <tr>
-              <td class="col-name">categories</td>
-              <td><span class="pill pill-module">Tenant / Stok</span></td>
-              <td><span class="pill pill-pk">id PK</span>, <span class="pill pill-uk">code UK</span></td>
-              <td><span class="col-type">name, description, is_active</span></td>
-              <td>Ürün sınıflandırma ağacı ve departman hiyerarşisi.</td>
-            </tr>
-            <tr>
-              <td class="col-name">products</td>
-              <td><span class="pill pill-module">Tenant / Stok</span></td>
-              <td><span class="pill pill-pk">id PK</span>, <span class="pill pill-uk">code UK</span>, <span class="pill pill-fk">category_id FK</span></td>
-              <td><span class="col-type">base_unit, tax_rate, attributes (JSONB)</span></td>
-              <td>Ana ürün kartı (şablon). Stok miktarı tutmaz; özellik şablonu tanımlar.</td>
-            </tr>
-            <tr>
-              <td class="col-name">product_variants</td>
-              <td><span class="pill pill-module">Tenant / Stok</span></td>
-              <td><span class="pill pill-pk">id PK</span>, <span class="pill pill-uk">sku UK</span>, <span class="pill pill-fk">product_id FK</span></td>
-              <td><span class="col-type">barcode, stock_quantity, reserved_stock, prices</span></td>
-              <td>SKU bazlı varyant meta kartı. Satılabilir stok: <code>stock_quantity - reserved_stock</code>.</td>
-            </tr>
-            <tr>
-              <td class="col-name">warehouses</td>
-              <td><span class="pill pill-module">Tenant / Depo</span></td>
-              <td><span class="pill pill-pk">id PK</span>, <span class="pill pill-uk">code UK</span></td>
-              <td><span class="col-type">name, location, address, is_active</span></td>
-              <td>Fiziksel veya mantıksal depolar (Merkez Depo, Mağaza Reyonu, Fason Atölye).</td>
-            </tr>
-            <tr>
-              <td class="col-name">warehouse_stocks</td>
-              <td><span class="pill pill-module">Tenant / Depo</span></td>
-              <td><span class="pill pill-pk">id PK</span>, <span class="pill pill-fk">warehouse_id FK</span>, <span class="pill pill-fk">variant_id FK</span></td>
-              <td><span class="col-type">quantity (NUMERIC), reserved_stock, shelf_location</span></td>
-              <td>Depo bazlı gerçek stok kaynağı. (warehouse_id, variant_id) çifti UNIQUE'tir.</td>
-            </tr>
-            <tr>
-              <td class="col-name">stock_movements</td>
-              <td><span class="pill pill-module">Tenant / Depo</span></td>
-              <td><span class="pill pill-pk">id PK</span>, <span class="pill pill-uk">movement_number UK</span></td>
-              <td><span class="col-type">movement_type, quantity, reference_type, reference_id</span></td>
-              <td>Denetlenebilir çift taraflı stok hareket kütüğü (Ledger). Hareket türleri: GOODS_RECEIPT, ISSUE, TRANSFER.</td>
-            </tr>
-            <tr>
-              <td class="col-name">business_partners</td>
-              <td><span class="pill pill-module">Tenant / Cari</span></td>
-              <td><span class="pill pill-pk">id PK</span>, <span class="pill pill-uk">tax_number UK</span></td>
-              <td><span class="col-type">partner_type, company_title, email, phone, metadata (JSONB)</span></td>
-              <td>Müşteri (CUSTOMER), Tedarikçi (SUPPLIER) veya Her İkisi (BOTH) cari hesap kartları.</td>
-            </tr>
-            <tr>
-              <td class="col-name">quotations</td>
-              <td><span class="pill pill-module">Tenant / B2B Ticaret</span></td>
-              <td><span class="pill pill-pk">id PK</span>, <span class="pill pill-uk">quotation_number UK</span>, <span class="pill pill-fk">partner_id FK</span></td>
-              <td><span class="col-type">type, status, currency, exchange_rate, total_amount</span></td>
-              <td>B2B Fiyat Teklifleri. ACCEPTED durumunda tek tıkla siparişe dönüşür.</td>
-            </tr>
-            <tr>
-              <td class="col-name">quotation_items</td>
-              <td><span class="pill pill-module">Tenant / B2B Ticaret</span></td>
-              <td><span class="pill pill-pk">id PK</span>, <span class="pill pill-fk">quotation_id FK</span>, <span class="pill pill-fk">variant_id FK</span></td>
-              <td><span class="col-type">quantity, unit_price, tax_rate, discount_rate, subtotal</span></td>
-              <td>Teklif satır kalemleri.</td>
-            </tr>
-            <tr>
-              <td class="col-name">orders</td>
-              <td><span class="pill pill-module">Tenant / B2B Ticaret</span></td>
-              <td><span class="pill pill-pk">id PK</span>, <span class="pill pill-uk">order_number UK</span>, <span class="pill pill-fk">partner_id FK</span></td>
-              <td><span class="col-type">order_type, status, total_amount, order_date, delivery_date</span></td>
-              <td>Resmi siparişler. CONFIRMED yapıldığında RabbitMQ ile otomatik stok rezervasyonu tetiklenir.</td>
-            </tr>
-            <tr>
-              <td class="col-name">order_items</td>
-              <td><span class="pill pill-module">Tenant / B2B Ticaret</span></td>
-              <td><span class="pill pill-pk">id PK</span>, <span class="pill pill-fk">order_id FK</span>, <span class="pill pill-fk">variant_id FK</span></td>
-              <td><span class="col-type">quantity, unit_price, tax_rate, discount_rate, subtotal</span></td>
-              <td>Sipariş kalemleri.</td>
-            </tr>
-            <tr>
-              <td class="col-name">waybills</td>
-              <td><span class="pill pill-module">Tenant / Lojistik</span></td>
-              <td><span class="pill pill-pk">id PK</span>, <span class="pill pill-uk">waybill_number UK</span>, <span class="pill pill-fk">order_id FK</span></td>
-              <td><span class="col-type">type, status, carrier_company, tracking_number, vehicle_plate</span></td>
-              <td>Sevk ve Alış İrsaliyeleri. DISPATCHED olduğunda fiziki stok düşüşü tamamlanır ve sipariş COMPLETED olur.</td>
-            </tr>
-            <tr>
-              <td class="col-name">waybill_items</td>
-              <td><span class="pill pill-module">Tenant / Lojistik</span></td>
-              <td><span class="pill pill-pk">id PK</span>, <span class="pill pill-fk">waybill_id FK</span>, <span class="pill pill-fk">order_item_id FK</span></td>
-              <td><span class="col-type">quantity, unit_price, description</span></td>
-              <td>İrsaliye kalemleri. <code>order_item_id</code> ile kısmi sevk (partial shipment) takibi sağlar.</td>
-            </tr>
-            <tr>
-              <td class="col-name">invoices</td>
-              <td><span class="pill pill-module">Tenant / Finans</span></td>
-              <td><span class="pill pill-pk">id PK</span>, <span class="pill pill-uk">invoice_number UK</span>, <span class="pill pill-fk">partner_id FK</span></td>
-              <td><span class="col-type">invoice_type, status, total_amount, paid_amount, remaining_amount</span></td>
-              <td>Resmi Satış/Alış Faturaları. İrsaliyeden veya siparişten türetilir. Cari borç/alacak bakiyesini oluşturur.</td>
-            </tr>
-            <tr>
-              <td class="col-name">invoice_items</td>
-              <td><span class="pill pill-module">Tenant / Finans</span></td>
-              <td><span class="pill pill-pk">id PK</span>, <span class="pill pill-fk">invoice_id FK</span>, <span class="pill pill-fk">waybill_item_id FK</span></td>
-              <td><span class="col-type">quantity, unit_price, tax_rate, discount_rate, subtotal</span></td>
-              <td>Fatura satır kalemleri.</td>
-            </tr>
-            <tr>
-              <td class="col-name">payments</td>
-              <td><span class="pill pill-module">Tenant / Finans</span></td>
-              <td><span class="pill pill-pk">id PK</span>, <span class="pill pill-uk">payment_number UK</span>, <span class="pill pill-fk">invoice_id FK</span></td>
-              <td><span class="col-type">payment_type, amount, payment_method, reference_number, status</span></td>
-              <td>Tahsilat ve Ödeme makbuzları. Fatura bakiyesini düşer; cari hesap ekstresinde running balance oluşturur.</td>
-            </tr>
-            <tr>
-              <td class="col-name">bill_of_materials</td>
-              <td><span class="pill pill-module">Tenant / Üretim (BOM)</span></td>
-              <td><span class="pill pill-pk">id PK</span>, <span class="pill pill-uk">bom_code UK</span>, <span class="pill pill-fk">target_variant_id FK</span></td>
-              <td><span class="col-type">name, base_quantity, unit, industry_type, is_active</span></td>
-              <td>Üretim Reçetesi ana kartı. Hedef mamulün 1 parti üretimi için reçete tanımlarını ve sektör tipini barındırır.</td>
-            </tr>
-            <tr>
-              <td class="col-name">bom_items</td>
-              <td><span class="pill pill-module">Tenant / Üretim (BOM)</span></td>
-              <td><span class="pill pill-pk">id PK</span>, <span class="pill pill-fk">bom_id FK</span>, <span class="pill pill-fk">component_variant_id FK</span></td>
-              <td><span class="col-type">quantity, unit, scrap_rate, sequence_order</span></td>
-              <td>Reçete bileşenleri. 1 birim nihai mamul için gereken hammadde, yarı mamul veya sarf malzemesi miktarı ve fire oranı.</td>
-            </tr>
-            <tr>
-              <td class="col-name">work_orders</td>
-              <td><span class="pill pill-module">Tenant / Üretim (BOM)</span></td>
-              <td><span class="pill pill-pk">id PK</span>, <span class="pill pill-uk">order_number UK</span>, <span class="pill pill-fk">bom_id FK</span>, <span class="pill pill-fk">warehouse_id FK</span></td>
-              <td><span class="col-type">planned_quantity, produced_quantity, status, priority, dates</span></td>
-              <td>Üretim İş Emirleri. Durumlar: PLANNED, IN_PROGRESS, COMPLETED, CANCELLED. Tamamlandığında otomatik stok entegrasyonu yapar.</td>
-            </tr>
-            <tr>
-              <td class="col-name">work_order_items</td>
-              <td><span class="pill pill-module">Tenant / Üretim (BOM)</span></td>
-              <td><span class="pill pill-pk">id PK</span>, <span class="pill pill-fk">work_order_id FK</span>, <span class="pill pill-fk">component_variant_id FK</span></td>
-              <td><span class="col-type">required_quantity, consumed_quantity, unit</span></td>
-              <td>İş emri gerçekleşen sarfiyat satırları. Üretim tamamlandığında tüketilen hammadde miktarını kaydeder.</td>
-            </tr>
-            <tr>
-              <td class="col-name">document_sequences</td>
-              <td><span class="pill pill-module">Tenant / Çekirdek</span></td>
-              <td><span class="pill pill-pk">id PK</span>, <span class="pill pill-uk">type+prefix+year UK</span></td>
-              <td><span class="col-type">document_type, prefix, year, last_number</span></td>
-              <td>Kurumsal resmi belge numaratörü. Sipariş, irsaliye, fatura ve ödeme için yıllık sıralı sayaç yönetir.</td>
-            </tr>
-            <tr>
-              <td class="col-name">treasury_accounts</td>
-              <td><span class="pill pill-module">Tenant / Hazine</span></td>
-              <td><span class="pill pill-pk">id PK</span>, <span class="pill pill-uk">account_code UK</span></td>
-              <td><span class="col-type">account_type (CASH/BANK), current_balance, currency, iban</span></td>
-              <td>Kasa ve Banka hesapları. Tahsilat ve ödemelerde anlık bakiye artış/azalışını yönetir.</td>
-            </tr>
-          </tbody>
+          <tbody id="panelColumns"></tbody>
         </table>
       </div>
-    </div>
 
-    <!-- TAB 4: 10 FARKLI SEKTÖR UYUMLULUK MİMARİSİ & ŞABLONLARI -->
-    <div id="tab-sector-architectures" class="tab-content">
-      <div class="section-header">
-        <div>
-          <h2 class="section-title">🌐 10 Farklı Sektörün MiniERP Üzerinde Çalışma Mimarisi & Şablonları</h2>
-          <p class="section-desc">Tek Bir Satır Kod veya Şema Değişikliği Gerekmeden 10 Farklı Endüstrinin İhtiyaçlarını Karşılayan Evrensel ERP Motoru</p>
-        </div>
+      <div>
+        <div class="panel-sec-title">İlişkiler (Yabancı Anahtarlar - FK)</div>
+        <div id="panelRelations" style="font-size:0.75rem; color:#cbd5e1; font-family:'JetBrains Mono', monospace; line-height:1.6;"></div>
       </div>
 
-      <!-- Mimarinin 4 Temel Direği -->
-      <div class="grid-2" style="margin-bottom: 24px;">
-        <div class="card-box">
-          <span class="pill pill-fixed">1. Dynamic JSONB EAV (Attributes)</span>
-          <h3 class="card-title">Dinamik Özellik Motoru (PostgreSQL 16+ GIN Index)</h3>
-          <p class="card-desc">
-            Her sektör için ayrı tablo açmak (<code>textile_attributes</code>, <code>car_parts</code> vb.) veritabanı kirliliğine yol açar. MiniERP, <code>products.attributes</code> ve <code>product_variants.attributes</code> alanlarında <strong>JSONB</strong> tipini kullanarak her sektöre özel teknik nitelikleri (Kumaş Eni, OEM Kodu, SKT, CAS No, IMEI) dinamik olarak saklar ve GIN indeksleme ile milisaniyelik hızda sorgular.
-          </p>
-          <div class="code-box">CREATE INDEX idx_variants_attr ON product_variants USING gin (attributes);</div>
-        </div>
-
-        <div class="card-box">
-          <span class="pill pill-pk">2. Evrensel Ölçü Birimleri (Universal UOM)</span>
-          <h3 class="card-title">Çok Boyutlu Miktar ve Birim Dönüşümü</h3>
-          <p class="card-desc">
-            Sistem yalnızca "ADET" ile kısıtlı değildir. <strong>METRE, KG, LITRE, SAAT, M², M³, TON, KOLI, PALET</strong> gibi tüm endüstriyel birimleri 4 ondalıklı <code>NUMERIC(14,4)</code> hassasiyetiyle yönetir. İş emri tamamlandığında hammadde metre veya gram cinsinden düşerken, nihai mamul adet veya koli olarak depoya girer.
-          </p>
-          <div class="code-box">BomItem.quantity = 1.4500 METRE | BomItem.scrapRate = %3.50</div>
-        </div>
-
-        <div class="card-box">
-          <span class="pill pill-uk">3. Hiyerarşik Üretim Reçetesi (BOM Engine)</span>
-          <h3 class="card-title">Ayrık Montaj, Süreç Formülü ve Hizmet Kiti Desteği</h3>
-          <p class="card-desc">
-            Aynı BOM motoru 3 farklı üretim modelini destekler:<br/>
-            • <strong>Ayrık İmalat (Discrete):</strong> Tekstil, Otomotiv, Mobilya, Elektronik parçalarının montajı.<br/>
-            • <strong>Süreç/Formülasyon (Process):</strong> Kimya, Boya, Gıda reçetelerinin karıştırılması ve fire hesabı.<br/>
-            • <strong>Kit & Paketleme (Assembly):</strong> E-Ticaret promosyon kutuları ve teknik servis paketleri.
-          </p>
-          <div class="code-box">BOM -> BomItem (sequenceOrder, scrapRate) -> WorkOrder</div>
-        </div>
-
-        <div class="card-box">
-          <span class="pill pill-module">4. Çoklu Depo & Lokasyon İzolasyonu</span>
-          <h3 class="card-title">Hammadde, Yarı Mamul, Karantina & Sevk Depoları</h3>
-          <p class="card-desc">
-            İş emri açılırken hammadde çıkış deposu (örn: <code>WH-HAMMADDE</code>) ile üretilen mamulün gireceği hedef depo (örn: <code>WH-MAMUL-MERKEZ</code>) ayrı ayrı belirlenir. Bu sayede üretim sahasındaki yarı mamuller ve hatalı partiler karantina depolarında güvenle izole edilir.
-          </p>
-          <div class="code-box">StockMovement(GIRIS, MamulDepo) & StockMovement(CIKIS, HammaddeDepo)</div>
-        </div>
-      </div>
-
-      <!-- 10 Sektör Detay Kartları -->
-      <h3 class="section-title" style="margin-bottom: 16px;">🏭 10 Sektörün Detaylı Parametre, BOM & Süreç Matrisi</h3>
-      <div class="grid-2" style="margin-bottom: 24px;">
-
-        <!-- 1. Tekstil & Konfeksiyon -->
-        <div class="card-box">
-          <div class="step-header">
-            <span class="pill pill-fixed">1. TEKSTİL & KONFEKSİYON</span>
-            <span class="step-badge pill-pk">DISCRETE MFG</span>
-          </div>
-          <h3 class="card-title">🧵 Kumaş Dokuma, Boyama & Hazır Giyim Konfeksiyonu</h3>
-          <p class="card-desc">
-            <strong>Sektörel Özellikler:</strong> Renk/Beden varyant matrisi (XS..3XL), kumaş top numarası, en, gramaj (g/m²), çekme payı (shrinkage).
-          </p>
-          <div class="code-box">attributes: {"color": "Indigo", "size": "32/34", "fabric_width_cm": 150, "shrinkage": 0.03}</div>
-          <p class="card-desc">
-            <strong>Örnek BOM Reçetesi (1 Adet Denim Pantolon):</strong><br/>
-            • 1.40 m Kot Kumaşı (Fire: %4.0)<br/>
-            • 1 Adet Metal Fermuar + 5 Adet Perçin + 1 Adet Düğme<br/>
-            • 120 m Dikiş İpliği + 15 dk Yıkama/Taşlama Operasyonu
-          </p>
-          <div class="step-event">Süreç: Kumaş Top Girişi $\rightarrow$ Pastal Serim $\rightarrow$ Kesim $\rightarrow$ Dikim $\rightarrow$ Yıkama $\rightarrow$ Ütü-Paket $\rightarrow$ Sevk</div>
-        </div>
-
-        <!-- 2. Gıda & Fırıncılık -->
-        <div class="card-box">
-          <div class="step-header">
-            <span class="pill pill-uk">2. GIDA, İÇECEK & FIRINCILIK</span>
-            <span class="step-badge pill-fixed">PROCESS / LOT</span>
-          </div>
-          <h3 class="card-title">🍞 Unlu Mamuller, Süt Ürünleri & İçecek Üretimi</h3>
-          <p class="card-desc">
-            <strong>Sektörel Özellikler:</strong> Parti/Lot numarası, Son Kullanma Tarihi (SKT), saklama sıcaklığı, alerjen bilgisi, gram/litre hassasiyeti.
-          </p>
-          <div class="code-box">attributes: {"lot_number": "L-2026-09", "expiry_date": "2026-12-31", "storage_temp": "+4C", "allergens": ["Gluten"]}</div>
-          <p class="card-desc">
-            <strong>Örnek BOM Reçetesi (100 Adet Baget Ekmek):</strong><br/>
-            • 35.0 kg Ekmeklik Un (Tip 550)<br/>
-            • 22.0 Litre Su + 0.80 kg Yaş Maya<br/>
-            • 0.60 kg İyotlu Tuz + 0.20 kg Ekmek Geliştirici
-          </p>
-          <div class="step-event">Süreç: Hammadde Mal Kabul $\rightarrow$ Dozajlama $\rightarrow$ Hamur Yoğurma $\rightarrow$ Fermantasyon $\rightarrow$ Fırınlama $\rightarrow$ Sıcak Sevkiyat</div>
-        </div>
-
-        <!-- 3. Otomotiv & Yedek Parça -->
-        <div class="card-box">
-          <div class="step-header">
-            <span class="pill pill-module">3. OTOMOTİV & YEDEK PARÇA</span>
-            <span class="step-badge pill-pk">OEM & ASSEMBLY</span>
-          </div>
-          <h3 class="card-title">🚗 Otomotiv Yan Sanayi, Yedek Parça & Montaj Kitleri</h3>
-          <p class="card-desc">
-            <strong>Sektörel Özellikler:</strong> Orijinal Ekipman (OEM) parça kodu, araç marka/model uyumluluk listesi, garanti süresi.
-          </p>
-          <div class="code-box">attributes: {"oem_code": "04L115562", "compatible_vehicles": ["VW Golf 7", "Audi A3", "Seat Leon"], "warranty_months": 24}</div>
-          <p class="card-desc">
-            <strong>Örnek BOM Reçetesi (1 Takım Ön Fren Diski & Balata Seti):</strong><br/>
-            • 2 Adet Döküm Havalandırmalı Fren Diski<br/>
-            • 4 Adet Seramik Fren Balatası + 4 Adet Paslanmaz Çelik Klips<br/>
-            • 1 Tüp Yüksek Isı Montaj Gres Yağı + Kutu/Ambalaj
-          </p>
-          <div class="step-event">Süreç: Döküm & İşleme $\rightarrow$ Yüzey Taşlama $\rightarrow$ Kalite Balans Testi $\rightarrow$ Set Koli Montajı $\rightarrow$ Bayi Dağıtımı</div>
-        </div>
-
-        <!-- 4. Mobilya & Ağaç Sanayi -->
-        <div class="card-box">
-          <div class="step-header">
-            <span class="pill pill-pk">4. MOBİLYA & AĞAÇ SANAYİ</span>
-            <span class="step-badge pill-uk">FLAT-PACK & CNC</span>
-          </div>
-          <h3 class="card-title">🪑 Masif, Modüler Mobilya & Panel Ağaç İmalatı</h3>
-          <p class="card-desc">
-            <strong>Sektörel Özellikler:</strong> Levha m², kereste m³, kalınlık (mm), ağaç türü, kenar bant cinsi, E1 formaldehit emisyon standardı.
-          </p>
-          <div class="code-box">attributes: {"wood_type": "Doğal Meşe", "panel_thickness_mm": 18, "moisture_percent": 8, "finish": "Mat Cila"}</div>
-          <p class="card-desc">
-            <strong>Örnek BOM Reçetesi (1 Adet Masif Yemek Masası 180x90):</strong><br/>
-            • 0.18 m³ Fırınlanmış Meşe Kereste (Fire: %8.0)<br/>
-            • 4 Adet Elektrostatik Boyalı Çelik Profil Ayak<br/>
-            • 1.20 Litre Su Bazlı Ahşap Koruyucu Vernik + 24 Adet Bağlantı Vidası
-          </p>
-          <div class="step-event">Süreç: Kereste Fırınlama $\rightarrow$ Ebatlama $\rightarrow$ Kenar Bantlama $\rightarrow$ CNC Delik $\rightarrow$ Zımpara $\rightarrow$ Demonte Flat-Pack</div>
-        </div>
-
-        <!-- 5. Elektronik & Donanım -->
-        <div class="card-box">
-          <div class="step-header">
-            <span class="pill pill-fixed">5. ELEKTRONİK & DONANIM</span>
-            <span class="step-badge pill-module">SMD & SERIAL</span>
-          </div>
-          <h3 class="card-title">⚡ Akıllı Cihazlar, IoT Sensörler & Devre Kartı Montajı</h3>
-          <p class="card-desc">
-            <strong>Sektörel Özellikler:</strong> Cihaz Seri No, MAC Adresi, IMEI, Firmware yazılım sürümü, CE / RoHS sertifikasyonu.
-          </p>
-          <div class="code-box">attributes: {"mac_address": "B4:E6:2D:11:4A:88", "firmware_version": "v2.1.0", "ip_rating": "IP67", "rohs_compliant": true}</div>
-          <p class="card-desc">
-            <strong>Örnek BOM Reçetesi (1 Adet Endüstriyel IoT Sıcaklık Sensörü):</strong><br/>
-            • 1 Adet 4-Katmanlı Çoklu PCB Devre Kartı<br/>
-            • 1 Adet ESP32-WROOM Mikrodenetleyici + 1 Adet Dijital Nem/Isı Sensörü<br/>
-            • 1 Adet IP67 ABS Muhafaza Kutusu + 1 Adet 3.6V Lityum Pil
-          </p>
-          <div class="step-event">Süreç: SMD Dizgi $\rightarrow$ Reflow Fırınlama $\rightarrow$ Firmware Flaşlama $\rightarrow$ Kalibrasyon & Yanma Testi $\rightarrow$ Seri Etiketleme</div>
-        </div>
-
-        <!-- 6. Kimya, Boya & Plastik -->
-        <div class="card-box">
-          <div class="step-header">
-            <span class="pill pill-uk">6. KİMYA, BOYA & PLASTİK</span>
-            <span class="step-badge pill-fixed">FORMULA & HAZMAT</span>
-          </div>
-          <h3 class="card-title">🧪 Endüstriyel Boya, Kimyasal Çözücüler & Plastik Enjeksiyon</h3>
-          <p class="card-desc">
-            <strong>Sektörel Özellikler:</strong> CAS Kimyasal No, Tehlikeli Madde Sınıfı (ADR), yoğunluk (g/cm³), viskozite, parlama noktası.
-          </p>
-          <div class="code-box">attributes: {"cas_number": "1330-20-7", "adr_class": "Class 3 - Yanıcı Sıvı", "density": 0.865, "flash_point_c": 27}</div>
-          <p class="card-desc">
-            <strong>Örnek BOM Reçetesi (1.000 Litre Su Bazlı İç Cephe Boyası):</strong><br/>
-            • 420.0 Litre Saf Deiyonize Su<br/>
-            • 280.0 kg Titanyum Dioksit (Beyaz Örtücü Pigment)<br/>
-            • 180.0 kg Saf Akrilik Reçine Emülsiyonu + 120.0 kg Mikronize Kalsit
-          </p>
-          <div class="step-event">Süreç: Dozajlama $\rightarrow$ Yüksek Hızlı Mikser $\rightarrow$ Perl Değirmende Ezme $\rightarrow$ Renk & Viskozite Kontrol $\rightarrow$ Dolum</div>
-        </div>
-
-        <!-- 7. İnşaat & Hırdavat -->
-        <div class="card-box">
-          <div class="step-header">
-            <span class="pill pill-pk">7. İNŞAAT & HIRDAVAT</span>
-            <span class="step-badge pill-module">BULK & PROJECT</span>
-          </div>
-          <h3 class="card-title">🏗️ Yapı Malzemeleri, Kuru Harç & Şantiye Dağıtımı</h3>
-          <p class="card-desc">
-            <strong>Sektörel Özellikler:</strong> Proje/Şantiye Kodu, Mukavemet Sınıfı (TS EN), Ton/Palet irsaliyesi, araç plaka ve kantar fişi.
-          </p>
-          <div class="code-box">attributes: {"project_code": "METRO-VADI-REZIDANS", "strength_class": "C35/45", "standard": "TS EN 206", "gross_ton": 26.4}</div>
-          <p class="card-desc">
-            <strong>Örnek BOM Reçetesi (1 Palet / 40 Torba Hazır Sıva Harcı):</strong><br/>
-            • 40 Adet 3-Katlı Kraft Kağıt Torba<br/>
-            • 1.000 kg Çimento-Kalker-Polimer Karışımı (Ton Hesabı)<br/>
-            • 1 Adet Isıl İşlemli Ahşap Palet + 25 m Streç Film Sarımı
-          </p>
-          <div class="step-event">Süreç: Silo Hammadde Dozajı $\rightarrow$ Kuru Karışım $\rightarrow$ Otomatik Torbalama $\rightarrow$ Robotik Paletleme $\rightarrow$ Şantiye Tır Sevk</div>
-        </div>
-
-        <!-- 8. Sağlık & Medikal -->
-        <div class="card-box">
-          <div class="step-header">
-            <span class="pill pill-fixed">8. SAĞLIK & MEDİKAL</span>
-            <span class="step-badge pill-pk">GMP & ISO 13485</span>
-          </div>
-          <h3 class="card-title">💊 Tıbbi Cihazlar, Cerrahi Sarfiyat & İlaç/Kozmetik</h3>
-          <p class="card-desc">
-            <strong>Sektörel Özellikler:</strong> T.C. Sağlık Bakanlığı ÜTS Barkodu, GMP Uyumluluğu, Sterilizasyon Parti No, Temiz Oda Sınıfı.
-          </p>
-          <div class="code-box">attributes: {"uts_barcode": "8680001234567", "sterilization_lot": "STER-EO-991", "sterile_until": "2029-05", "gmp_certified": true}</div>
-          <p class="card-desc">
-            <strong>Örnek BOM Reçetesi (1 Kutu / 50 Adet Tip IIR Cerrahi Maske):</strong><br/>
-            • 16.0 m 3-Katlı Spunbond + Meltblown Filtre Kumaşı<br/>
-            • 50.0 m Lateks İçermeyen Yuvarlak Kulak Lastiği<br/>
-            • 5.0 m Plastik Kaplamalı Alüminyum Burun Teli + 1 Adet Medikal Kutu
-          </p>
-          <div class="step-event">Süreç: ISO Class 7 Temiz Oda $\rightarrow$ Ultrasonik Dikiş $\rightarrow$ Görsel Denetim $\rightarrow$ Etilen Oksit Sterilizasyon $\rightarrow$ ÜTS Kayıt</div>
-        </div>
-
-        <!-- 9. E-Ticaret & Perakende -->
-        <div class="card-box">
-          <div class="step-header">
-            <span class="pill pill-uk">9. E-TİCARET & PERAKENDE</span>
-            <span class="step-badge pill-fixed">OMNICHANNEL</span>
-          </div>
-          <h3 class="card-title">📦 Çok Kanallı Pazar Yeri Satışı, Koli & Hediye Paketleri</h3>
-          <p class="card-desc">
-            <strong>Sektörel Özellikler:</strong> Trendyol / Amazon / Hepsiburada SKU, Desi hacmi, koli barkodu, hediye mesajı, raf hücre lokasyonu.
-          </p>
-          <div class="code-box">attributes: {"marketplace_sku": "TRND-8849", "desi": 1.75, "shelf_location": "KOR-C-RAF-12", "packaging_type": "GiftBox"}</div>
-          <p class="card-desc">
-            <strong>Örnek BOM Reçetesi (1 Adet VIP E-Ticaret Hediye Kutusu):</strong><br/>
-            • 1 Adet Sert Mukavva Mıknatıslı Hediye Kutusu<br/>
-            • 1 Adet Ana Ürün (Örn: Deri Cüzdan) + 1 Adet Promosyon Anahtarlık<br/>
-            • 2 Tabaka Siyah Pelur Kağıdı + 1 Adet Özel Baskılı Teşekkür Kartı
-          </p>
-          <div class="step-event">Süreç: Pazar Yeri Entegrasyonu $\rightarrow$ Dalgalı Toplama (Wave Pick) $\rightarrow$ Paketleme Masası $\rightarrow$ Kargo Etiketleme $\rightarrow$ Sevk</div>
-        </div>
-
-        <!-- 10. Hizmet, Servis & Bakım -->
-        <div class="card-box">
-          <div class="step-header">
-            <span class="pill pill-module">10. HİZMET, SERVİS & BAKIM</span>
-            <span class="step-badge pill-pk">LABOR & SLA</span>
-          </div>
-          <h3 class="card-title">🔧 Teknik Servis, Periyodik Bakım & Mühendislik Emeği</h3>
-          <p class="card-desc">
-            <strong>Sektörel Özellikler:</strong> Adam/Saat emeği, SLA taahhüt süresi (saat), servis fiş no, görevli kıdemli teknisyen, arıza teşhis kodu.
-          </p>
-          <div class="code-box">attributes: {"technician": "Ahmet Usta (Kıdemli)", "sla_hours": 4, "device_serial": "SRV-KMB-441", "warranty_job": false}</div>
-          <p class="card-desc">
-            <strong>Örnek BOM Reçetesi (1 Adet Periyodik Kombi & Isıtma Bakımı):</strong><br/>
-            • 2.00 Saat Yetkili Teknisyen Saha İşçiliği (Birim: SAAT)<br/>
-            • 1 Adet Ateşleme Elektrodu + 1 Adet Eşanjör Temizleme Kimyasalı<br/>
-            • 2 Adet Yüksek Sıcaklık Sızdırmazlık Contası
-          </p>
-          <div class="step-event">Süreç: Arıza/Bakım Çağrısı $\rightarrow$ Saha İş Emri $\rightarrow$ Parça Sarfiyatı $\rightarrow$ İşçilik Süresi Kaydı $\rightarrow$ Servis Fişi & Fatura</div>
-        </div>
+      <div>
+        <div class="panel-sec-title">PostgreSQL CREATE TABLE DDL</div>
+        <div class="sql-box" id="panelSql"></div>
       </div>
     </div>
+  </div>
 
-    <!-- TAB 5: SOLID & DESIGN PATTERNS -->
-    <div id="tab-solid-patterns" class="tab-content">
-      <div class="section-header">
-        <div>
-          <h2 class="section-title">🛡️ Projedeki SOLID Prensipleri & Tasarım Desenleri Mimarisi</h2>
-          <p class="section-desc">Yapılan Kod İyileştirmeleri, Refaktörler ve Kurumsal Yazılım Mimarisi Standartları</p>
-        </div>
-      </div>
-
-      <div class="grid-2" style="margin-bottom: 24px;">
-        <div class="card-box">
-          <span class="pill pill-fixed">S - Single Responsibility Principle (SRP)</span>
-          <h3 class="card-title">Finansal Bakiye ve Cari Yönetimi Ayrımı</h3>
-          <p class="card-desc">
-            <code>BusinessPartnerServiceImpl</code> sınıfı daha önce hem müşteri/tedarikçi CRUD işlemlerini yürütüyor hem de tüm fatura ve ödemeleri belleğe çekip kümülatif bakiye hesaplıyordu.
-          </p>
-          <p class="card-desc">
-            <strong>Yapılan Düzeltme:</strong> Finansal bakiye ve ekstre hesaplama mantığı tamamen <code>PartnerFinancialService</code> arayüzü ve implementasyonuna devredildi. Cari servis yalnızca partner yönetimine odaklandı.
-          </p>
-          <div class="code-box">partnerFinancialService.calculateAndSetBalances(dtos);</div>
-        </div>
-
-        <div class="card-box">
-          <span class="pill pill-pk">O - Open/Closed Principle (OCP) & Strategy Pattern</span>
-          <h3 class="card-title">Resilient Event Publishing Fallback</h3>
-          <p class="card-desc">
-            <code>OrderEventPublisher</code> ve <code>WaybillEventPublisher</code> bileşenleri doğrudan RabbitMQ'ya bağımlıydı. RabbitMQ kapalı olduğunda (örn. düşük kaynaklı yerel PC'lerde) olaylar kayboluyordu.
-          </p>
-          <p class="card-desc">
-            <strong>Yapılan Düzeltme:</strong> RabbitMQ çevrimdışı olduğunda Spring <code>ApplicationEventPublisher</code> devreye girerek dahili domain event fırlatır. Yeni kuyruk sistemleri eklendiğinde iş servisleri değişmez.
-          </p>
-          <div class="code-box">try { rabbitTemplate... } catch(e) { appEventPublisher.publishEvent(event); }</div>
-        </div>
-
-        <div class="card-box">
-          <span class="pill pill-uk">L & I - Liskov Substitution & Interface Segregation</span>
-          <h3 class="card-title">Modüler Mikro-Arayüzler ve Taban Varlık Kalıtımı</h3>
-          <p class="card-desc">
-            Tüm JPA Entity'leri <code>BaseEntity</code> (id, createdAt, updatedAt, version) sınıfını miras alarak Liskov prensibine uyar.
-          </p>
-          <p class="card-desc">
-            Arayüzler tek bir devasa "ErpService" yerine; <code>ProductService</code>, <code>OrderService</code>, <code>WaybillService</code>, <code>InvoiceService</code> ve <code>PartnerFinancialService</code> şeklinde amaca özel ayrılmıştır.
-          </p>
-          <div class="code-box">public class Product extends BaseEntity { ... }</div>
-        </div>
-
-        <div class="card-box">
-          <span class="pill pill-module">D - Dependency Inversion Principle (DIP)</span>
-          <h3 class="card-title">Soyutlamalara Bağımlılık & Spring IoC</h3>
-          <p class="card-desc">
-            Controller sınıfları doğrudan implementasyonlara değil, Service arayüzlerine (Interface) bağımlıdır. Servisler ise veri erişimi için JPA Repository arayüzlerini kullanır.
-          </p>
-          <p class="card-desc">
-            Lombok <code>@RequiredArgsConstructor</code> ve Spring Constructor Injection ile çalışma zamanında gevşek bağlı (loosely coupled) ve birim test edilebilir bileşenler oluşturulmuştur.
-          </p>
-          <div class="code-box">private final BusinessPartnerService businessPartnerService;</div>
-        </div>
-      </div>
-
-      <div class="glass-box">
-        <h3 class="card-title" style="margin-bottom: 14px;">🧩 Projede Aktif Olarak Kullanılan GoF & Kurumsal Tasarım Desenleri</h3>
-        <table class="schema-table">
-          <thead>
-            <tr>
-              <th>Tasarım Deseni</th>
-              <th>Kullanıldığı Yer</th>
-              <th>Sağladığı Fayda ve Çözüm</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td class="col-name">Observer & EDA (Event-Driven)</td>
-              <td>RabbitMQ, InventoryEventListener, OrderConfirmedEvent</td>
-              <td>Sipariş ve Depo modülleri arasında sıkı bağımlılığı engeller; stok rezervasyonunu asenkron yürütür.</td>
-            </tr>
-            <tr>
-              <td class="col-name">Strategy Pattern</td>
-              <td>OrderEventPublisher / WaybillEventPublisher</td>
-              <td>RabbitMQ varsa AMQP ile, yoksa Spring ApplicationEvent ile olay yayınlama stratejisi seçilir.</td>
-            </tr>
-            <tr>
-              <td class="col-name">State Pattern / Lifecycle Engine</td>
-              <td>Order (DRAFT $\rightarrow$ CONFIRMED $\rightarrow$ COMPLETED), Waybill, Invoice</td>
-              <td>Yalnızca izin verilen durum geçişlerine onay verir; teslim edilmiş siparişin iptalini veya ödenmiş faturanın silinmesini engeller.</td>
-            </tr>
-            <tr>
-              <td class="col-name">Repository Pattern</td>
-              <td>Spring Data JPA Repository arayüzleri</td>
-              <td>Veritabanı sorgularını ve veri erişim detaylarını servis katmanından soyutlar.</td>
-            </tr>
-            <tr>
-              <td class="col-name">DTO & Data Mapper Pattern</td>
-              <td>MapStruct (ProductMapper, OrderMapper, InvoiceMapper)</td>
-              <td>Veritabanı Entity'lerinin doğrudan dış dünyaya açılmasını engeller; güvenlik ve DTO dönüşüm performansı sağlar.</td>
-            </tr>
-            <tr>
-              <td class="col-name">Multi-Tenancy Connection Provider</td>
-              <td>MultiTenantConnectionProviderImpl & TenantContext</td>
-              <td>PostgreSQL search_path şemasını ThreadLocal bağlamında dinamik değiştirerek fiziksel veri izolasyonu sağlar.</td>
-            </tr>
-            <tr>
-              <td class="col-name">Template Method & Atomic Transaction</td>
-              <td>ManufacturingServiceImpl (completeWorkOrder)</td>
-              <td>İş emri tamamlama algoritmasında; BOM bileşenlerini doğrulama, sarfiyat hesaplama, stok düşme ve mamul girişi adımlarını atomik `@Transactional` yürütür.</td>
-            </tr>
-            <tr>
-              <td class="col-name">N+1 Fetch Optimization Pattern</td>
-              <td>ProductRepository.findAllWithVariants()</td>
-              <td>`LEFT JOIN FETCH p.variants LEFT JOIN FETCH p.category` ile ürün ve varyantları tek bir veritabanı sorgusunda getirerek N+1 sorgu krizini önler.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- TAB 6: GELECEK & GERÇEKÇİ KURUMSAL ERP MODÜLLERİ (ROADMAP) -->
-    <div id="tab-erp-roadmap" class="tab-content">
-      <div class="section-header">
-        <div>
-          <h2 class="section-title">🚀 MiniERP'ye Eklenebilecek Gerçekçi Kurumsal Modüller & Yol Haritası</h2>
-          <p class="section-desc">Projeyi Gerçek Hayatta Kullanılan SAP, Logo, Netsis Düzeyinde Bir ERP'ye Dönüştürecek Modüller</p>
-        </div>
-      </div>
-
-      <div class="grid-3">
-        <!-- Modül 1 -->
-        <div class="card-box">
-          <span class="pill pill-pk">1. Yasal Mevzuat</span>
-          <h3 class="card-title">📑 E-Fatura & E-İrsaliye (GİB UBL-TR Entegrasyonu)</h3>
-          <p class="card-desc">
-            Türkiye Gelir İdaresi Başkanlığı (GİB) standartlarında XML/UBL-TR 1.2 formatında e-Fatura, e-Arşiv ve e-İrsaliye üretimi. Özel entegratör API'leri (İzibiz, Sovos, Digital Planet) ile çift yönlü imzalama ve GİB posta kutusuna iletim.
-          </p>
-          <div class="code-box">XSLT Şablonu -> Mali Mühür -> GİB UUID</div>
-        </div>
-
-        <!-- Modül 2: TAMAMLANDI -->
-        <div class="card-box" style="border-color: rgba(52, 211, 153, 0.4); background: rgba(6, 78, 59, 0.15);">
-          <span class="pill pill-fixed">✅ 2. İmalat & MRP (v2.5 İLE CANLIYA ALINDI)</span>
-          <h3 class="card-title">⚙️ Üretim Reçetesi (BOM) & İş Emirleri</h3>
-          <p class="card-desc">
-            <strong>Mevcut Durum:</strong> Sisteme başarıyla entegre edildi! Reçete tanımlama, hammadde sarfiyat hesaplama, otomatik stok düşüm/giriş entegrasyonu ve 10 farklı endüstriyel şablon desteği aktif çalışmaktadır.
-          </p>
-          <div class="code-box">ManufacturingService -> BomRepository -> WorkOrder -> StockMovement</div>
-        </div>
-
-        <!-- Modül 3 -->
-        <div class="card-box">
-          <span class="pill pill-uk">3. Depo & Lojistik</span>
-          <h3 class="card-title">📦 Çoklu Depo Transferi & Raf/Hücre Lokasyon Takibi</h3>
-          <p class="card-desc">
-            Depolar arası transfer fişleri (Merkez Depo $\rightarrow$ Mağaza Reyon Deposu). Depo içinde Koridor-Raf-Kat-Kutu (Bin Location) bazında ürün yerleşimi. Mobil barkod/karekod okuyucu ile mal kabul ve raf sayımı.
-          </p>
-          <div class="code-box">WH_Transfer_Slip (SourceWH -> TargetWH)</div>
-        </div>
-
-        <!-- Modül 4 -->
-        <div class="card-box">
-          <span class="pill pill-module">4. Hazine & Finans</span>
-          <h3 class="card-title">💳 Kasa, Banka & Çek/Senet Yönetimi</h3>
-          <p class="card-desc">
-            TL ve Dövizli fiziki şirket kasaları. Banka hesap hareketleri ve MT940 formatında otomatik banka ekstre entegrasyonu. Müşteriden alınan ve tedarikçiye ciro edilen vadeli çek/senet bordro takibi.
-          </p>
-          <div class="code-box">BankAccounts + CashRegisters + PromissoryNotes</div>
-        </div>
-
-        <!-- Modül 5 -->
-        <div class="card-box">
-          <span class="pill pill-pk">5. Fiyatlandırma</span>
-          <h3 class="card-title">🏷️ Dinamik Fiyat Listeleri & Müşteri İskonto Matrisi</h3>
-          <p class="card-desc">
-            Müşteri grubuna göre otomatik fiyat (Toptancı Fiyat Listesi, Bayi Fiyatı, E-Ticaret Fiyatı). Kademeli miktar iskontosu (Örn: 100 top üzeri kumaş alımında %12 iskonto). Vade gününe göre faiz/vade farkı formülü.
-          </p>
-          <div class="code-box">PriceLists + PartnerGroupPricing + VolumeDiscounts</div>
-        </div>
-
-        <!-- Modül 6 -->
-        <div class="card-box">
-          <span class="pill pill-fixed">6. Güvenlik & Yetki</span>
-          <h3 class="card-title">🔐 Detaylı Yetki Matrisi (Granular RBAC)</h3>
-          <p class="card-desc">
-            Yalnızca 3 sabit rol yerine dinamik yetki tablosu: Menü, sayfa ve buton bazlı izinler (Örn: "Depo görevlisi irsaliyeyi görür ama fatura tutarlarını ve kar marjını göremez; siparişi sadece müdür onaylayabilir").
-          </p>
-          <div class="code-box">Permissions (ORDER_CONFIRM, INVOICE_APPROVE vb.)</div>
-        </div>
-
-        <!-- Modül 7 -->
-        <div class="card-box">
-          <span class="pill pill-uk">7. Raporlama</span>
-          <h3 class="card-title">📊 PDF & Excel Raporlama Motoru</h3>
-          <p class="card-desc">
-            OpenPDF / JasperReports ile şirket logolu, QR kodlu, antetli resmi Teklif, Sipariş ve İrsaliye PDF çıktısı alma. Apache POI ile anlık stok mizanı, cari yaşlandırma ve KDV beyanname raporlarını Excel'e aktarma.
-          </p>
-          <div class="code-box">ExportService (PDF & Excel Stream Response)</div>
-        </div>
-
-        <!-- Modül 8 -->
-        <div class="card-box">
-          <span class="pill pill-module">8. Bildirim & İletişim</span>
-          <h3 class="card-title">🔔 WebSocket Canlı Bildirim & Onay Akışları</h3>
-          <p class="card-desc">
-            Sipariş onaylandığında veya stok kritik eşiğe (15 adedin altına) düştüğünde tarayıcıya canlı WebSocket / SSE toast uyarısı gelmesi. Çok adımlı satın alma onay akışı (Kullanıcı Talep Eder $\rightarrow$ Şef Onaylar $\rightarrow$ Satın Alınır).
-          </p>
-          <div class="code-box">STOMP / WebSocket + NotificationTopic</div>
-        </div>
-      </div>
-    </div>
-  </main>
-
+  <!-- Alt Bilgi Çubuğu -->
   <footer>
-    <p>MiniERP Enterprise Blueprint • Schema-per-Tenant Çok Kiracılı Mimari • PostgreSQL 16+ & RabbitMQ</p>
+    <div class="footer-left">
+      <span><span class="footer-dot"></span>24 Tenant Tablosu + 1 Public Tablosu + 2 View</span>
+      <span>• Vektör Render (Sıfır Bulanıklık)</span>
+      <span>• Sürükle & Yakınlaştır Destekli</span>
+    </div>
+    <div>
+      <span>Tıklayarak Tablo Detayını Açın</span>
+    </div>
   </footer>
 
   <script>
-    // Mermaid başlatma
-    mermaid.initialize({
-      startOnLoad: true,
-      theme: 'dark',
-      themeVariables: {
-        darkMode: true,
-        background: '#090e1a',
-        primaryColor: '#1e293b',
-        primaryTextColor: '#f8fafc',
-        primaryBorderColor: '#38bdf8',
-        lineColor: '#60a5fa',
-        secondaryColor: '#0f172a',
-        tertiaryColor: '#1e1b4b',
-        fontFamily: 'JetBrains Mono, monospace',
-        fontSize: '12px'
+    // =========================================================================
+    // MiniERP Gerçek PostgreSQL Şeması (V1__init_tenant_schema.sql ile %100 Birebir)
+    // =========================================================================
+    const SCHEMA_DATA = [
+      // 1. GENEL & GÜVENLİK
+      {
+        id: "tenants",
+        schema: "public",
+        name: "tenants",
+        module: "AUTH",
+        moduleName: "Master Kiracı",
+        x: 60, y: 80,
+        columns: [
+          { name: "id", type: "BIGSERIAL", key: "PK", nullable: false },
+          { name: "tenant_id", type: "VARCHAR(50)", key: "UK", nullable: false },
+          { name: "company_name", type: "VARCHAR(100)", key: "", nullable: false },
+          { name: "schema_name", type: "VARCHAR(50)", key: "UK", nullable: false },
+          { name: "is_active", type: "BOOLEAN", key: "", nullable: false },
+          { name: "created_at", type: "TIMESTAMPTZ", key: "", nullable: true },
+          { name: "version", type: "BIGINT", key: "", nullable: true }
+        ],
+        relations: []
       },
-      er: {
-        useMaxWidth: false,
-        layoutDirection: 'TB',
-        minEntityWidth: 150,
-        minEntityHeight: 70,
-        entityPadding: 15,
-        stroke: '#38bdf8',
-        fill: '#0f172a'
+      {
+        id: "users",
+        schema: "tenant",
+        name: "users",
+        module: "AUTH",
+        moduleName: "Kullanıcılar",
+        x: 60, y: 360,
+        columns: [
+          { name: "id", type: "BIGSERIAL", key: "PK", nullable: false },
+          { name: "username", type: "VARCHAR(50)", key: "UK", nullable: false },
+          { name: "email", type: "VARCHAR(100)", key: "UK", nullable: false },
+          { name: "password_hash", type: "VARCHAR(255)", key: "", nullable: false },
+          { name: "full_name", type: "VARCHAR(100)", key: "", nullable: true },
+          { name: "role", type: "VARCHAR(20)", key: "", nullable: false },
+          { name: "is_active", type: "BOOLEAN", key: "", nullable: false },
+          { name: "created_at", type: "TIMESTAMPTZ", key: "", nullable: true }
+        ],
+        relations: []
+      },
+      {
+        id: "audit_logs",
+        schema: "tenant",
+        name: "audit_logs",
+        module: "AUTH",
+        moduleName: "Denetim İzi",
+        x: 60, y: 640,
+        columns: [
+          { name: "id", type: "BIGSERIAL", key: "PK", nullable: false },
+          { name: "action", type: "VARCHAR(50)", key: "", nullable: false },
+          { name: "entity_type", type: "VARCHAR(50)", key: "", nullable: false },
+          { name: "entity_id", type: "BIGINT", key: "", nullable: true },
+          { name: "performed_by", type: "VARCHAR(100)", key: "", nullable: true },
+          { name: "ip_address", type: "VARCHAR(45)", key: "", nullable: true },
+          { name: "details", type: "JSONB", key: "", nullable: true },
+          { name: "performed_at", type: "TIMESTAMPTZ", key: "", nullable: true }
+        ],
+        relations: []
+      },
+      {
+        id: "document_sequences",
+        schema: "tenant",
+        name: "document_sequences",
+        module: "AUTH",
+        moduleName: "Numaratörler",
+        x: 60, y: 920,
+        columns: [
+          { name: "id", type: "BIGSERIAL", key: "PK", nullable: false },
+          { name: "document_type", type: "VARCHAR(30)", key: "", nullable: false },
+          { name: "prefix", type: "VARCHAR(10)", key: "", nullable: false },
+          { name: "year", type: "INTEGER", key: "", nullable: false },
+          { name: "last_number", type: "BIGINT", key: "", nullable: false }
+        ],
+        relations: []
+      },
+
+      // 2. CARİLER & FİYAT LİSTESİ
+      {
+        id: "business_partners",
+        schema: "tenant",
+        name: "business_partners",
+        module: "PARTNER",
+        moduleName: "Cari Kartlar",
+        x: 440, y: 80,
+        columns: [
+          { name: "id", type: "BIGSERIAL", key: "PK", nullable: false },
+          { name: "code", type: "VARCHAR(50)", key: "UK", nullable: false },
+          { name: "partner_type", type: "VARCHAR(20)", key: "", nullable: false },
+          { name: "name", type: "VARCHAR(150)", key: "", nullable: false },
+          { name: "company_title", type: "VARCHAR(255)", key: "", nullable: true },
+          { name: "tax_number", type: "VARCHAR(20)", key: "", nullable: true },
+          { name: "tax_office", type: "VARCHAR(100)", key: "", nullable: true },
+          { name: "email", type: "VARCHAR(100)", key: "", nullable: true },
+          { name: "phone", type: "VARCHAR(30)", key: "", nullable: true },
+          { name: "address", type: "TEXT", key: "", nullable: true },
+          { name: "metadata", type: "JSONB", key: "", nullable: true },
+          { name: "is_active", type: "BOOLEAN", key: "", nullable: false }
+        ],
+        relations: []
+      },
+
+      // 3. KATEGORİ & ÜRÜN KÜTÜĞÜ
+      {
+        id: "categories",
+        schema: "tenant",
+        name: "categories",
+        module: "STOCK",
+        moduleName: "Kategoriler",
+        x: 820, y: 80,
+        columns: [
+          { name: "id", type: "BIGSERIAL", key: "PK", nullable: false },
+          { name: "code", type: "VARCHAR(50)", key: "UK", nullable: false },
+          { name: "name", type: "VARCHAR(100)", key: "", nullable: false },
+          { name: "description", type: "TEXT", key: "", nullable: true },
+          { name: "is_active", type: "BOOLEAN", key: "", nullable: false }
+        ],
+        relations: []
+      },
+      {
+        id: "products",
+        schema: "tenant",
+        name: "products",
+        module: "STOCK",
+        moduleName: "Ürünler (Kartlar)",
+        x: 820, y: 350,
+        columns: [
+          { name: "id", type: "BIGSERIAL", key: "PK", nullable: false },
+          { name: "category_id", type: "BIGINT", key: "FK", nullable: true },
+          { name: "partner_id", type: "BIGINT", key: "FK", nullable: true },
+          { name: "product_type", type: "VARCHAR(30)", key: "", nullable: false },
+          { name: "name", type: "VARCHAR(150)", key: "", nullable: false },
+          { name: "code", type: "VARCHAR(50)", key: "UK", nullable: false },
+          { name: "base_unit", type: "VARCHAR(20)", key: "", nullable: false },
+          { name: "tax_rate", type: "NUMERIC(5,2)", key: "", nullable: false },
+          { name: "attributes", type: "JSONB", key: "", nullable: true },
+          { name: "is_active", type: "BOOLEAN", key: "", nullable: false }
+        ],
+        relations: [
+          { target: "categories", targetCol: "id", fromCol: "category_id" },
+          { target: "business_partners", targetCol: "id", fromCol: "partner_id" }
+        ]
+      },
+      {
+        id: "product_variants",
+        schema: "tenant",
+        name: "product_variants",
+        module: "STOCK",
+        moduleName: "Ürün Varyantları (SKU)",
+        x: 820, y: 780,
+        columns: [
+          { name: "id", type: "BIGSERIAL", key: "PK", nullable: false },
+          { name: "product_id", type: "BIGINT", key: "FK", nullable: false },
+          { name: "sku", type: "VARCHAR(50)", key: "UK", nullable: false },
+          { name: "barcode", type: "VARCHAR(50)", key: "", nullable: true },
+          { name: "variant_name", type: "VARCHAR(150)", key: "", nullable: false },
+          { name: "purchase_price", type: "NUMERIC(15,2)", key: "", nullable: false },
+          { name: "sale_price", type: "NUMERIC(15,2)", key: "", nullable: false },
+          { name: "stock_quantity", type: "INTEGER", key: "", nullable: false },
+          { name: "reserved_stock", type: "INTEGER", key: "", nullable: false },
+          { name: "attributes", type: "JSONB", key: "", nullable: true }
+        ],
+        relations: [
+          { target: "products", targetCol: "id", fromCol: "product_id" }
+        ]
+      },
+
+      // 4. DEPOLAR & STOK HAREKETLERİ
+      {
+        id: "warehouses",
+        schema: "tenant",
+        name: "warehouses",
+        module: "STOCK",
+        moduleName: "Depolar",
+        x: 1220, y: 80,
+        columns: [
+          { name: "id", type: "BIGSERIAL", key: "PK", nullable: false },
+          { name: "code", type: "VARCHAR(50)", key: "UK", nullable: false },
+          { name: "name", type: "VARCHAR(100)", key: "", nullable: false },
+          { name: "location", type: "VARCHAR(100)", key: "", nullable: true },
+          { name: "is_active", type: "BOOLEAN", key: "", nullable: false }
+        ],
+        relations: []
+      },
+      {
+        id: "warehouse_stocks",
+        schema: "tenant",
+        name: "warehouse_stocks",
+        module: "STOCK",
+        moduleName: "Depo Stok Bakiyeleri",
+        x: 1220, y: 350,
+        columns: [
+          { name: "id", type: "BIGSERIAL", key: "PK", nullable: false },
+          { name: "warehouse_id", type: "BIGINT", key: "FK", nullable: false },
+          { name: "variant_id", type: "BIGINT", key: "FK", nullable: false },
+          { name: "quantity", type: "INTEGER", key: "", nullable: false },
+          { name: "reserved_stock", type: "INTEGER", key: "", nullable: false },
+          { name: "shelf_location", type: "VARCHAR(50)", key: "", nullable: true }
+        ],
+        relations: [
+          { target: "warehouses", targetCol: "id", fromCol: "warehouse_id" },
+          { target: "product_variants", targetCol: "id", fromCol: "variant_id" }
+        ]
+      },
+      {
+        id: "stock_movements",
+        schema: "tenant",
+        name: "stock_movements",
+        module: "STOCK",
+        moduleName: "Stok Hareketleri (Log)",
+        x: 1220, y: 650,
+        columns: [
+          { name: "id", type: "BIGSERIAL", key: "PK", nullable: false },
+          { name: "movement_number", type: "VARCHAR(50)", key: "UK", nullable: false },
+          { name: "movement_type", type: "VARCHAR(30)", key: "", nullable: false },
+          { name: "source_warehouse_id", type: "BIGINT", key: "FK", nullable: true },
+          { name: "target_warehouse_id", type: "BIGINT", key: "FK", nullable: true },
+          { name: "variant_id", type: "BIGINT", key: "FK", nullable: false },
+          { name: "quantity", type: "INTEGER", key: "", nullable: false },
+          { name: "lot_number", type: "VARCHAR(50)", key: "", nullable: true },
+          { name: "movement_date", type: "TIMESTAMPTZ", key: "", nullable: false }
+        ],
+        relations: [
+          { target: "product_variants", targetCol: "id", fromCol: "variant_id" },
+          { target: "warehouses", targetCol: "id", fromCol: "source_warehouse_id" }
+        ]
+      },
+
+      // 5. TEKLİF (QUOTATIONS)
+      {
+        id: "quotations",
+        schema: "tenant",
+        name: "quotations",
+        module: "ORDER",
+        moduleName: "Teklifler",
+        x: 1620, y: 80,
+        columns: [
+          { name: "id", type: "BIGSERIAL", key: "PK", nullable: false },
+          { name: "quotation_number", type: "VARCHAR(50)", key: "UK", nullable: false },
+          { name: "type", type: "VARCHAR(20)", key: "", nullable: false },
+          { name: "partner_id", type: "BIGINT", key: "FK", nullable: false },
+          { name: "status", type: "VARCHAR(20)", key: "", nullable: false },
+          { name: "currency", type: "VARCHAR(3)", key: "", nullable: false },
+          { name: "subtotal_amount", type: "NUMERIC(15,2)", key: "", nullable: false },
+          { name: "tax_amount", type: "NUMERIC(15,2)", key: "", nullable: false },
+          { name: "total_amount", type: "NUMERIC(15,2)", key: "", nullable: false }
+        ],
+        relations: [
+          { target: "business_partners", targetCol: "id", fromCol: "partner_id" }
+        ]
+      },
+      {
+        id: "quotation_items",
+        schema: "tenant",
+        name: "quotation_items",
+        module: "ORDER",
+        moduleName: "Teklif Kalemleri",
+        x: 1620, y: 460,
+        columns: [
+          { name: "id", type: "BIGSERIAL", key: "PK", nullable: false },
+          { name: "quotation_id", type: "BIGINT", key: "FK", nullable: false },
+          { name: "variant_id", type: "BIGINT", key: "FK", nullable: false },
+          { name: "quantity", type: "INTEGER", key: "", nullable: false },
+          { name: "unit_price", type: "NUMERIC(15,2)", key: "", nullable: false },
+          { name: "tax_rate", type: "NUMERIC(5,2)", key: "", nullable: false },
+          { name: "subtotal", type: "NUMERIC(15,2)", key: "", nullable: false }
+        ],
+        relations: [
+          { target: "quotations", targetCol: "id", fromCol: "quotation_id" },
+          { target: "product_variants", targetCol: "id", fromCol: "variant_id" }
+        ]
+      },
+
+      // 6. SİPARİŞ (ORDERS)
+      {
+        id: "orders",
+        schema: "tenant",
+        name: "orders",
+        module: "ORDER",
+        moduleName: "Sipariş Fişleri",
+        x: 2020, y: 80,
+        columns: [
+          { name: "id", type: "BIGSERIAL", key: "PK", nullable: false },
+          { name: "order_number", type: "VARCHAR(50)", key: "UK", nullable: false },
+          { name: "order_type", type: "VARCHAR(20)", key: "", nullable: false },
+          { name: "partner_id", type: "BIGINT", key: "FK", nullable: false },
+          { name: "quotation_id", type: "BIGINT", key: "FK", nullable: true },
+          { name: "status", type: "VARCHAR(20)", key: "", nullable: false },
+          { name: "currency", type: "VARCHAR(3)", key: "", nullable: false },
+          { name: "total_amount", type: "NUMERIC(15,2)", key: "", nullable: false },
+          { name: "order_date", type: "TIMESTAMPTZ", key: "", nullable: false }
+        ],
+        relations: [
+          { target: "business_partners", targetCol: "id", fromCol: "partner_id" },
+          { target: "quotations", targetCol: "id", fromCol: "quotation_id" }
+        ]
+      },
+      {
+        id: "order_items",
+        schema: "tenant",
+        name: "order_items",
+        module: "ORDER",
+        moduleName: "Sipariş Kalemleri",
+        x: 2020, y: 480,
+        columns: [
+          { name: "id", type: "BIGSERIAL", key: "PK", nullable: false },
+          { name: "order_id", type: "BIGINT", key: "FK", nullable: false },
+          { name: "variant_id", type: "BIGINT", key: "FK", nullable: false },
+          { name: "quantity", type: "INTEGER", key: "", nullable: false },
+          { name: "delivered_quantity", type: "INTEGER", key: "", nullable: false },
+          { name: "unit_price", type: "NUMERIC(15,2)", key: "", nullable: false },
+          { name: "subtotal", type: "NUMERIC(15,2)", key: "", nullable: false }
+        ],
+        relations: [
+          { target: "orders", targetCol: "id", fromCol: "order_id" },
+          { target: "product_variants", targetCol: "id", fromCol: "variant_id" }
+        ]
+      },
+
+      // 7. İRSALİYE & LOJİSTİK (WAYBILLS)
+      {
+        id: "waybills",
+        schema: "tenant",
+        name: "waybills",
+        module: "WAYBILL",
+        moduleName: "Sevk İrsaliyeleri",
+        x: 2420, y: 80,
+        columns: [
+          { name: "id", type: "BIGSERIAL", key: "PK", nullable: false },
+          { name: "waybill_number", type: "VARCHAR(50)", key: "UK", nullable: false },
+          { name: "type", type: "VARCHAR(20)", key: "", nullable: false },
+          { name: "partner_id", type: "BIGINT", key: "FK", nullable: false },
+          { name: "order_id", type: "BIGINT", key: "FK", nullable: true },
+          { name: "source_warehouse_id", type: "BIGINT", key: "FK", nullable: true },
+          { name: "target_warehouse_id", type: "BIGINT", key: "FK", nullable: true },
+          { name: "status", type: "VARCHAR(20)", key: "", nullable: false },
+          { name: "dispatch_date", type: "TIMESTAMPTZ", key: "", nullable: false }
+        ],
+        relations: [
+          { target: "business_partners", targetCol: "id", fromCol: "partner_id" },
+          { target: "orders", targetCol: "id", fromCol: "order_id" },
+          { target: "warehouses", targetCol: "id", fromCol: "source_warehouse_id" }
+        ]
+      },
+      {
+        id: "waybill_items",
+        schema: "tenant",
+        name: "waybill_items",
+        module: "WAYBILL",
+        moduleName: "İrsaliye Kalemleri",
+        x: 2420, y: 500,
+        columns: [
+          { name: "id", type: "BIGSERIAL", key: "PK", nullable: false },
+          { name: "waybill_id", type: "BIGINT", key: "FK", nullable: false },
+          { name: "variant_id", type: "BIGINT", key: "FK", nullable: false },
+          { name: "order_item_id", type: "BIGINT", key: "FK", nullable: true },
+          { name: "quantity", type: "INTEGER", key: "", nullable: false },
+          { name: "lot_number", type: "VARCHAR(50)", key: "", nullable: true }
+        ],
+        relations: [
+          { target: "waybills", targetCol: "id", fromCol: "waybill_id" },
+          { target: "product_variants", targetCol: "id", fromCol: "variant_id" },
+          { target: "order_items", targetCol: "id", fromCol: "order_item_id" }
+        ]
+      },
+
+      // 8. FATURA & ÖDEME (INVOICES & PAYMENTS)
+      {
+        id: "invoices",
+        schema: "tenant",
+        name: "invoices",
+        module: "INVOICE",
+        moduleName: "Resmi Faturalar",
+        x: 2820, y: 80,
+        columns: [
+          { name: "id", type: "BIGSERIAL", key: "PK", nullable: false },
+          { name: "invoice_number", type: "VARCHAR(50)", key: "UK", nullable: false },
+          { name: "invoice_type", type: "VARCHAR(20)", key: "", nullable: false },
+          { name: "partner_id", type: "BIGINT", key: "FK", nullable: false },
+          { name: "order_id", type: "BIGINT", key: "FK", nullable: true },
+          { name: "waybill_id", type: "BIGINT", key: "FK", nullable: true },
+          { name: "status", type: "VARCHAR(20)", key: "", nullable: false },
+          { name: "total_amount", type: "NUMERIC(15,2)", key: "", nullable: false },
+          { name: "paid_amount", type: "NUMERIC(15,2)", key: "", nullable: false },
+          { name: "remaining_amount", type: "NUMERIC(15,2)", key: "", nullable: false }
+        ],
+        relations: [
+          { target: "business_partners", targetCol: "id", fromCol: "partner_id" },
+          { target: "orders", targetCol: "id", fromCol: "order_id" },
+          { target: "waybills", targetCol: "id", fromCol: "waybill_id" }
+        ]
+      },
+      {
+        id: "invoice_items",
+        schema: "tenant",
+        name: "invoice_items",
+        module: "INVOICE",
+        moduleName: "Fatura Satırları",
+        x: 2820, y: 530,
+        columns: [
+          { name: "id", type: "BIGSERIAL", key: "PK", nullable: false },
+          { name: "invoice_id", type: "BIGINT", key: "FK", nullable: false },
+          { name: "variant_id", type: "BIGINT", key: "FK", nullable: true },
+          { name: "waybill_item_id", type: "BIGINT", key: "FK", nullable: true },
+          { name: "quantity", type: "NUMERIC(12,2)", key: "", nullable: false },
+          { name: "unit_price", type: "NUMERIC(15,2)", key: "", nullable: false },
+          { name: "subtotal", type: "NUMERIC(15,2)", key: "", nullable: false }
+        ],
+        relations: [
+          { target: "invoices", targetCol: "id", fromCol: "invoice_id" },
+          { target: "product_variants", targetCol: "id", fromCol: "variant_id" },
+          { target: "waybill_items", targetCol: "id", fromCol: "waybill_item_id" }
+        ]
+      },
+      {
+        id: "treasury_accounts",
+        schema: "tenant",
+        name: "treasury_accounts",
+        module: "INVOICE",
+        moduleName: "Kasa & Banka",
+        x: 3220, y: 80,
+        columns: [
+          { name: "id", type: "BIGSERIAL", key: "PK", nullable: false },
+          { name: "account_code", type: "VARCHAR(50)", key: "UK", nullable: false },
+          { name: "account_name", type: "VARCHAR(100)", key: "", nullable: false },
+          { name: "account_type", type: "VARCHAR(20)", key: "", nullable: false },
+          { name: "currency", type: "VARCHAR(3)", key: "", nullable: false },
+          { name: "current_balance", type: "NUMERIC(15,2)", key: "", nullable: false },
+          { name: "iban", type: "VARCHAR(50)", key: "", nullable: true }
+        ],
+        relations: []
+      },
+      {
+        id: "payments",
+        schema: "tenant",
+        name: "payments",
+        module: "INVOICE",
+        moduleName: "Tahsilat & Tediye",
+        x: 3220, y: 440,
+        columns: [
+          { name: "id", type: "BIGSERIAL", key: "PK", nullable: false },
+          { name: "payment_number", type: "VARCHAR(50)", key: "UK", nullable: false },
+          { name: "payment_type", type: "VARCHAR(20)", key: "", nullable: false },
+          { name: "invoice_id", type: "BIGINT", key: "FK", nullable: true },
+          { name: "partner_id", type: "BIGINT", key: "FK", nullable: false },
+          { name: "account_id", type: "BIGINT", key: "FK", nullable: true },
+          { name: "amount", type: "NUMERIC(15,2)", key: "", nullable: false },
+          { name: "payment_method", type: "VARCHAR(30)", key: "", nullable: false }
+        ],
+        relations: [
+          { target: "invoices", targetCol: "id", fromCol: "invoice_id" },
+          { target: "business_partners", targetCol: "id", fromCol: "partner_id" },
+          { target: "treasury_accounts", targetCol: "id", fromCol: "account_id" }
+        ]
+      },
+
+      // 9. ÜRETİM & REÇETE (MFG & BOM)
+      {
+        id: "bill_of_materials",
+        schema: "tenant",
+        name: "bill_of_materials",
+        module: "MFG",
+        moduleName: "Ürün Reçeteleri (BOM)",
+        x: 820, y: 1250,
+        columns: [
+          { name: "id", type: "BIGSERIAL", key: "PK", nullable: false },
+          { name: "bom_code", type: "VARCHAR(50)", key: "UK", nullable: false },
+          { name: "name", type: "VARCHAR(150)", key: "", nullable: false },
+          { name: "variant_id", type: "BIGINT", key: "FK", nullable: false },
+          { name: "quantity", type: "NUMERIC(12,3)", key: "", nullable: false },
+          { name: "unit", type: "VARCHAR(20)", key: "", nullable: false },
+          { name: "industry_type", type: "VARCHAR(50)", key: "", nullable: false }
+        ],
+        relations: [
+          { target: "product_variants", targetCol: "id", fromCol: "variant_id" }
+        ]
+      },
+      {
+        id: "bom_items",
+        schema: "tenant",
+        name: "bom_items",
+        module: "MFG",
+        moduleName: "Reçete Sarfiyat Kalemleri",
+        x: 820, y: 1600,
+        columns: [
+          { name: "id", type: "BIGSERIAL", key: "PK", nullable: false },
+          { name: "bom_id", type: "BIGINT", key: "FK", nullable: false },
+          { name: "component_variant_id", type: "BIGINT", key: "FK", nullable: false },
+          { name: "quantity", type: "NUMERIC(12,3)", key: "", nullable: false },
+          { name: "unit", type: "VARCHAR(20)", key: "", nullable: false },
+          { name: "scrap_rate", type: "NUMERIC(5,2)", key: "", nullable: false }
+        ],
+        relations: [
+          { target: "bill_of_materials", targetCol: "id", fromCol: "bom_id" },
+          { target: "product_variants", targetCol: "id", fromCol: "component_variant_id" }
+        ]
+      },
+      {
+        id: "work_orders",
+        schema: "tenant",
+        name: "work_orders",
+        module: "MFG",
+        moduleName: "Üretim İş Emirleri",
+        x: 1220, y: 1250,
+        columns: [
+          { name: "id", type: "BIGSERIAL", key: "PK", nullable: false },
+          { name: "order_number", type: "VARCHAR(50)", key: "UK", nullable: false },
+          { name: "bom_id", type: "BIGINT", key: "FK", nullable: false },
+          { name: "source_warehouse_id", type: "BIGINT", key: "FK", nullable: true },
+          { name: "target_warehouse_id", type: "BIGINT", key: "FK", nullable: true },
+          { name: "order_id", type: "BIGINT", key: "FK", nullable: true },
+          { name: "planned_quantity", type: "NUMERIC(12,3)", key: "", nullable: false },
+          { name: "produced_quantity", type: "NUMERIC(12,3)", key: "", nullable: false },
+          { name: "status", type: "VARCHAR(20)", key: "", nullable: false }
+        ],
+        relations: [
+          { target: "bill_of_materials", targetCol: "id", fromCol: "bom_id" },
+          { target: "warehouses", targetCol: "id", fromCol: "source_warehouse_id" },
+          { target: "orders", targetCol: "id", fromCol: "order_id" }
+        ]
+      },
+      {
+        id: "work_order_items",
+        schema: "tenant",
+        name: "work_order_items",
+        module: "MFG",
+        moduleName: "İş Emri Tüketim Kalemleri",
+        x: 1220, y: 1670,
+        columns: [
+          { name: "id", type: "BIGSERIAL", key: "PK", nullable: false },
+          { name: "work_order_id", type: "BIGINT", key: "FK", nullable: false },
+          { name: "component_variant_id", type: "BIGINT", key: "FK", nullable: false },
+          { name: "planned_quantity", type: "NUMERIC(12,3)", key: "", nullable: false },
+          { name: "consumed_quantity", type: "NUMERIC(12,3)", key: "", nullable: false },
+          { name: "unit", type: "VARCHAR(20)", key: "", nullable: false }
+        ],
+        relations: [
+          { target: "work_orders", targetCol: "id", fromCol: "work_order_id" },
+          { target: "product_variants", targetCol: "id", fromCol: "component_variant_id" }
+        ]
+      },
+
+      // 10. VERİTABANI GÖRÜNÜMLERİ (VIEWS)
+      {
+        id: "v_stock_status",
+        schema: "view",
+        name: "v_stock_status",
+        module: "VIEW",
+        moduleName: "Stok Değerleme Görünümü",
+        x: 1620, y: 1250,
+        columns: [
+          { name: "variant_id", type: "BIGINT", key: "PK", nullable: false },
+          { name: "product_id", type: "BIGINT", key: "", nullable: false },
+          { name: "product_name", type: "VARCHAR(150)", key: "", nullable: false },
+          { name: "product_code", type: "VARCHAR(50)", key: "", nullable: false },
+          { name: "product_type", type: "VARCHAR(30)", key: "", nullable: false },
+          { name: "total_physical_stock", type: "INTEGER", key: "", nullable: false },
+          { name: "total_reserved_stock", type: "INTEGER", key: "", nullable: false },
+          { name: "available_stock", type: "INTEGER", key: "", nullable: false },
+          { name: "total_inventory_value", type: "NUMERIC", key: "", nullable: true }
+        ],
+        relations: [
+          { target: "product_variants", targetCol: "id", fromCol: "variant_id" }
+        ]
+      },
+      {
+        id: "v_partner_balance",
+        schema: "view",
+        name: "v_partner_balance",
+        module: "VIEW",
+        moduleName: "Cari Bakiye Görünümü",
+        x: 2020, y: 1250,
+        columns: [
+          { name: "partner_id", type: "BIGINT", key: "PK", nullable: false },
+          { name: "code", type: "VARCHAR(50)", key: "", nullable: false },
+          { name: "name", type: "VARCHAR(150)", key: "", nullable: false },
+          { name: "partner_type", type: "VARCHAR(20)", key: "", nullable: false },
+          { name: "total_sales_invoiced", type: "NUMERIC", key: "", nullable: true },
+          { name: "total_purchase_invoiced", type: "NUMERIC", key: "", nullable: true },
+          { name: "open_receivables", type: "NUMERIC", key: "", nullable: true },
+          { name: "open_payables", type: "NUMERIC", key: "", nullable: true }
+        ],
+        relations: [
+          { target: "business_partners", targetCol: "id", fromCol: "partner_id" }
+        ]
       }
-    });
+    ];
 
-    // Sekme Değiştirici
-    function switchTab(tabId) {
-      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-
-      event.currentTarget.classList.add('active');
-      const targetContent = document.getElementById('tab-' + tabId);
-      if (targetContent) {
-        targetContent.classList.add('active');
-      }
-
-      if (tabId === 'er-diagram') {
-        setTimeout(resetZoom, 150);
-      }
-    }
-
-    // Tablo Filtreleme
-    function filterSchemaTable() {
-      const input = document.getElementById('tableFilterInput');
-      const filter = input.value.toLowerCase();
-      const table = document.getElementById('schemaTable');
-      const trs = table.getElementsByTagName('tr');
-
-      for (let i = 1; i < trs.length; i++) {
-        const text = trs[i].textContent || trs[i].innerText;
-        if (text.toLowerCase().indexOf(filter) > -1) {
-          trs[i].style.display = '';
-        } else {
-          trs[i].style.display = 'none';
-        }
-      }
-    }
-
-    // Pan & Zoom Kontrolleri
-    let scale = 0.85;
-    let pointX = 0;
-    let pointY = 0;
-    let isPanning = false;
+    // =========================================================================
+    // İnteraktif Canvas, Pan & Zoom Motoru (SVG & DOM Tabanlı - %100 Netlik)
+    // =========================================================================
+    let scale = 0.82;
+    let panX = 40;
+    let panY = 30;
+    let isDragging = false;
     let startX = 0;
     let startY = 0;
+    let activeModuleFilter = 'ALL';
+    let selectedTableId = null;
 
-    const wrapper = document.getElementById('diagramWrapper');
-    const canvas = document.getElementById('panZoomCanvas');
-    const zoomIndicator = document.getElementById('zoomLevelIndicator');
+    const viewport = document.getElementById('viewport');
+    const canvasWorld = document.getElementById('canvasWorld');
+    const tablesLayer = document.getElementById('tablesLayer');
+    const svgConnections = document.getElementById('svgConnections');
+    const zoomText = document.getElementById('zoomLevel');
 
-    function updateTransform(animate = false) {
-      if (!canvas || !zoomIndicator) return;
-      if (animate) {
-        canvas.classList.add('animate');
-      } else {
-        canvas.classList.remove('animate');
-      }
-      canvas.style.transform = `translate(${pointX}px, ${pointY}px) scale(${scale})`;
-      zoomIndicator.textContent = `%${Math.round(scale * 100)}`;
+    function init() {
+      renderTables();
+      drawConnections();
+      updateTransform();
+      setupEvents();
     }
 
-    function zoomIn() {
-      scale = Math.min(scale * 1.2, 3.0);
-      updateTransform(true);
-    }
+    function renderTables() {
+      tablesLayer.innerHTML = '';
+      SCHEMA_DATA.forEach(table => {
+        const el = document.createElement('div');
+        el.className = `table-node`;
+        el.id = `table_${table.id}`;
+        el.style.left = `${table.x}px`;
+        el.style.top = `${table.y}px`;
+        el.dataset.module = table.module;
+        el.dataset.name = table.name.toLowerCase();
 
-    function zoomOut() {
-      scale = Math.max(scale / 1.2, 0.3);
-      updateTransform(true);
-    }
+        const modClass = `mod-${table.module.toLowerCase()}`;
+        const schemaText = table.schema === 'public' ? 'public' : (table.schema === 'view' ? 'view' : 'tenant');
 
-    function resetZoom() {
-      scale = 0.85;
-      pointX = 0;
-      pointY = 0;
-      updateTransform(true);
-    }
+        let colsHtml = '';
+        table.columns.forEach(col => {
+          let keyBadge = `<span class="col-key key-none"></span>`;
+          if (col.key === 'PK') keyBadge = `<span class="col-key key-pk">PK</span>`;
+          else if (col.key === 'FK') keyBadge = `<span class="col-key key-fk">FK</span>`;
+          else if (col.key === 'UK') keyBadge = `<span class="col-key key-uk">UK</span>`;
 
-    if (wrapper && canvas) {
-      wrapper.addEventListener('mousedown', (e) => {
-        e.preventDefault();
-        isPanning = true;
-        startX = e.clientX - pointX;
-        startY = e.clientY - pointY;
-        wrapper.classList.add('grabbing');
-        canvas.classList.remove('animate');
+          colsHtml += `
+            <div class="column-row">
+              <div class="col-left">
+                ${keyBadge}
+                <span class="col-name" title="${col.name}">${col.name}</span>
+              </div>
+              <span class="col-type">${col.type}</span>
+            </div>
+          `;
+        });
+
+        el.innerHTML = `
+          <div class="node-header">
+            <div class="table-title">
+              <span>${table.name}</span>
+              <span class="schema-tag">${schemaText}</span>
+            </div>
+            <span class="mod-tag ${modClass}">${table.moduleName}</span>
+          </div>
+          <div class="columns-list">
+            ${colsHtml}
+          </div>
+        `;
+
+        el.addEventListener('click', (e) => {
+          e.stopPropagation();
+          selectTable(table.id);
+        });
+
+        tablesLayer.appendChild(el);
       });
+    }
 
-      window.addEventListener('mouseup', () => {
-        if (isPanning) {
-          isPanning = false;
-          wrapper.classList.remove('grabbing');
-        }
+    function drawConnections() {
+      svgConnections.innerHTML = '';
+      
+      SCHEMA_DATA.forEach(source => {
+        source.relations.forEach(rel => {
+          const target = SCHEMA_DATA.find(t => t.id === rel.target);
+          if (!target) return;
+
+          // Koordinat hesaplama (Kutuların merkezleri veya kenarları)
+          const sX = source.x + 160;
+          const sY = source.y + 70;
+          const tX = target.x + 160;
+          const tY = target.y + 70;
+
+          const dx = tX - sX;
+          const dy = tY - sY;
+          const cx1 = sX + dx * 0.5;
+          const cy1 = sY;
+          const cx2 = sX + dx * 0.5;
+          const cy2 = tY;
+
+          const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          path.setAttribute('d', `M ${sX} ${sY} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${tX} ${tY}`);
+          path.setAttribute('class', 'rel-line');
+          path.setAttribute('id', `rel_${source.id}_${target.id}`);
+          path.dataset.source = source.id;
+          path.dataset.target = target.id;
+          svgConnections.appendChild(path);
+        });
+      });
+    }
+
+    function updateTransform() {
+      canvasWorld.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+      zoomText.textContent = `%${Math.round(scale * 100)}`;
+    }
+
+    function zoom(factor) {
+      const newScale = Math.min(Math.max(scale * factor, 0.25), 2.5);
+      // Zoom merkezine göre odaklama
+      const cx = viewport.clientWidth / 2;
+      const cy = viewport.clientHeight / 2;
+      panX = cx - (cx - panX) * (newScale / scale);
+      panY = cy - (cy - panY) * (newScale / scale);
+      scale = newScale;
+      updateTransform();
+    }
+
+    function resetView() {
+      scale = 0.85;
+      panX = 50;
+      panY = 40;
+      updateTransform();
+    }
+
+    function fitView() {
+      scale = 0.38;
+      panX = 20;
+      panY = 20;
+      updateTransform();
+    }
+
+    function setupEvents() {
+      viewport.addEventListener('mousedown', (e) => {
+        if (e.target.closest('.table-node') || e.target.closest('#detailPanel')) return;
+        isDragging = true;
+        startX = e.clientX - panX;
+        startY = e.clientY - panY;
+        viewport.classList.add('grabbing');
       });
 
       window.addEventListener('mousemove', (e) => {
-        if (!isPanning) return;
-        e.preventDefault();
-        pointX = e.clientX - startX;
-        pointY = e.clientY - startY;
-        updateTransform(false);
+        if (!isDragging) return;
+        panX = e.clientX - startX;
+        panY = e.clientY - startY;
+        updateTransform();
       });
 
-      wrapper.addEventListener('wheel', (e) => {
-        e.preventDefault();
-        const xs = (e.clientX - wrapper.getBoundingClientRect().left - pointX) / scale;
-        const ys = (e.clientY - wrapper.getBoundingClientRect().top - pointY) / scale;
-        const delta = -e.deltaY;
-        
-        const prevScale = scale;
-        if (delta > 0) {
-          scale = Math.min(scale * 1.12, 3.0);
-        } else {
-          scale = Math.max(scale / 1.12, 0.3);
-        }
+      window.addEventListener('mouseup', () => {
+        isDragging = false;
+        viewport.classList.remove('grabbing');
+      });
 
-        pointX -= (xs * scale - xs * prevScale);
-        pointY -= (ys * scale - ys * prevScale);
-        updateTransform(false);
+      viewport.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const factor = e.deltaY < 0 ? 1.1 : 0.9;
+        zoom(factor);
       }, { passive: false });
 
-      setTimeout(() => {
-        resetZoom();
-      }, 500);
+      viewport.addEventListener('click', (e) => {
+        if (!e.target.closest('.table-node') && !e.target.closest('#detailPanel')) {
+          closePanel();
+          clearSelection();
+        }
+      });
     }
+
+    function selectTable(tableId) {
+      selectedTableId = tableId;
+      const table = SCHEMA_DATA.find(t => t.id === tableId);
+      if (!table) return;
+
+      // Seçili kartı vurgula
+      document.querySelectorAll('.table-node').forEach(n => {
+        n.classList.remove('selected');
+        n.classList.remove('dimmed');
+      });
+      const selectedEl = document.getElementById(`table_${tableId}`);
+      if (selectedEl) selectedEl.classList.add('selected');
+
+      // Çizgileri aydınlat
+      document.querySelectorAll('.rel-line').forEach(line => {
+        if (line.dataset.source === tableId || line.dataset.target === tableId) {
+          line.classList.add('active');
+        } else {
+          line.classList.remove('active');
+        }
+      });
+
+      // Detay Panelini Aç
+      openPanel(table);
+    }
+
+    function clearSelection() {
+      selectedTableId = null;
+      document.querySelectorAll('.table-node').forEach(n => {
+        n.classList.remove('selected');
+        n.classList.remove('dimmed');
+      });
+      document.querySelectorAll('.rel-line').forEach(line => {
+        line.classList.remove('active');
+      });
+    }
+
+    function openPanel(table) {
+      const panel = document.getElementById('detailPanel');
+      document.getElementById('panelTitle').textContent = table.name;
+      document.getElementById('panelSchema').textContent = `${table.schema} şeması • Modül: ${table.moduleName}`;
+
+      const tbody = document.getElementById('panelColumns');
+      tbody.innerHTML = '';
+      table.columns.forEach(c => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><span style="color:${c.key==='PK'?'#f59e0b':(c.key==='FK'?'#38bdf8':'#a855f7')}">${c.key || '-'}</span></td>
+          <td style="color:#fff; font-weight:600;">${c.name}</td>
+          <td style="color:#94a3b8;">${c.type}</td>
+          <td>${c.nullable ? 'YES' : 'NO'}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      const relDiv = document.getElementById('panelRelations');
+      if (table.relations.length === 0) {
+        relDiv.innerHTML = '<span style="color:#64748b;">Bu tablodan dışarıya doğrudan FK bağlantısı bulunmuyor.</span>';
+      } else {
+        let relHtml = '<ul style="padding-left:16px; margin:0;">';
+        table.relations.forEach(r => {
+          relHtml += `<li><b>${r.fromCol}</b> ➔ ${r.target}(${r.targetCol})</li>`;
+        });
+        relHtml += '</ul>';
+        relDiv.innerHTML = relHtml;
+      }
+
+      // SQL CREATE TABLE Taslağı
+      let sql = `CREATE TABLE ${table.name} (\n`;
+      sql += table.columns.map(c => `    ${c.name.padEnd(20)} ${c.type}${c.nullable ? '' : ' NOT NULL'}${c.key==='PK' ? ' PRIMARY KEY' : ''}`).join(',\n');
+      sql += `\n);`;
+      document.getElementById('panelSql').textContent = sql;
+
+      panel.classList.add('open');
+    }
+
+    function closePanel() {
+      document.getElementById('detailPanel').classList.remove('open');
+    }
+
+    function filterModule(mod) {
+      activeModuleFilter = mod;
+      document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+
+      document.querySelectorAll('.table-node').forEach(node => {
+        if (mod === 'ALL' || node.dataset.module === mod) {
+          node.style.display = 'block';
+        } else {
+          node.style.display = 'none';
+        }
+      });
+      drawConnections();
+    }
+
+    function handleSearch(query) {
+      const q = query.trim().toLowerCase();
+      if (!q) {
+        document.querySelectorAll('.table-node').forEach(n => {
+          n.classList.remove('dimmed');
+        });
+        return;
+      }
+
+      document.querySelectorAll('.table-node').forEach(node => {
+        const text = node.textContent.toLowerCase();
+        if (text.includes(q)) {
+          node.classList.remove('dimmed');
+        } else {
+          node.classList.add('dimmed');
+        }
+      });
+    }
+
+    window.onload = init;
   </script>
 </body>
 </html>

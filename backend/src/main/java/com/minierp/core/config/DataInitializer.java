@@ -134,7 +134,10 @@ public class DataInitializer implements ApplicationRunner {
 
         try {
             txTemplate.execute(status -> {
-                // Eğer şemada zaten kullanıcı varsa seed yapılmış demektir
+                // 1. Temel standart carilerin eksik olanlarını güvenli ve hiçbir veriyi silmeden tamamla
+                ensureStandardPartnersIfMissing();
+
+                // 2. Eğer şemada zaten kullanıcı varsa tohumlama tamamlanmış demektir, asla ezme
                 if (userRepository.count() > 0) {
                     log.info("Kiracı '{}' verileri zaten mevcut, tohumlama atlandı.", tenant.getTenantId());
                     return null;
@@ -160,6 +163,70 @@ public class DataInitializer implements ApplicationRunner {
             });
         } finally {
             TenantContext.clear();
+        }
+    }
+
+    /**
+     * Temel 3 standart cari hesabı (Kompitürk, Mobilyacı, Ofis Müşterisi)
+     * şemada eksikse güvenli ve non-destructive (asla veri silmeden) olarak ekler.
+     */
+    private void ensureStandardPartnersIfMissing() {
+        if (!businessPartnerRepository.existsByCode("CAR-KMP-001")) {
+            businessPartnerRepository.save(BusinessPartner.builder()
+                    .code("CAR-KMP-001")
+                    .partnerType(PartnerType.BOTH)
+                    .name("Kompitürk ERP & Bilişim A.Ş.")
+                    .companyTitle("Kompitürk Bilişim Yazılım ve Danışmanlık Hizmetleri A.Ş.")
+                    .taxNumber("5810293841")
+                    .taxOffice("Boğaziçi VD")
+                    .email("iletisim@kompiturk.com")
+                    .phone("+90 212 888 10 20")
+                    .address("Yıldız Teknik Üniversitesi Teknopark Bilişim Vadisi No:10 Esenler / İstanbul")
+                    .metadata(Map.of(
+                            "sektor", "Bilişim & Yazılım",
+                            "faaliyet", "MiniERP Kurumsal Lisans & Danışmanlık Hizmetleri",
+                            "yetkili", "Burak Aktaş"
+                    ))
+                    .build());
+        }
+
+        if (!businessPartnerRepository.existsByCode("CAR-MBL-001")) {
+            businessPartnerRepository.save(BusinessPartner.builder()
+                    .code("CAR-MBL-001")
+                    .partnerType(PartnerType.BOTH)
+                    .name("Artisan Ahşap & Mobilya Sanayi Ltd.")
+                    .companyTitle("Artisan Ahşap Mobilya Sanayi ve Ticaret Ltd. Şti.")
+                    .taxNumber("2910485712")
+                    .taxOffice("İnegöl VD")
+                    .email("siparis@artisanmobilya.com.tr")
+                    .phone("+90 224 714 55 00")
+                    .address("Organize Sanayi Bölgesi Mobilyacılar Cad. No:18 İnegöl / Bursa")
+                    .metadata(Map.of(
+                            "sektor", "Mobilya & Ağaç İşleri",
+                            "faaliyet", "Ofis ve Ev Ahşap Mobilyaları İmalatı & Toptan Satışı",
+                            "yetkili", "Ahmet Usta"
+                    ))
+                    .build());
+        }
+
+        if (!businessPartnerRepository.existsByCode("CAR-NOV-001")) {
+            businessPartnerRepository.save(BusinessPartner.builder()
+                    .code("CAR-NOV-001")
+                    .partnerType(PartnerType.CUSTOMER)
+                    .name("Nova Plaza & Kurumsal Ofis Çözümleri A.Ş.")
+                    .companyTitle("Nova Plaza İş Merkezi ve Yönetim Hizmetleri A.Ş.")
+                    .taxNumber("6320194851")
+                    .taxOffice("Maslak VD")
+                    .email("satinalma@novaplaza.com.tr")
+                    .phone("+90 212 345 60 70")
+                    .address("Büyükdere Cad. Nova Plaza No:142 Kat:12 Maslak / İstanbul")
+                    .metadata(Map.of(
+                            "sektor", "Gayrimenkul & İş Merkezi Yönetimi",
+                            "faaliyet", "Kurumsal Ofis Yönetimi",
+                            "vade", "30 Gün",
+                            "yetkili", "Zeynep Hanım"
+                    ))
+                    .build());
         }
     }
 

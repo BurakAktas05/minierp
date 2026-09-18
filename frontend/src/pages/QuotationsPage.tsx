@@ -61,11 +61,11 @@ export const QuotationsPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedQuote, setSelectedQuote] = useState<Quotation | null>(null);
 
-  // Modals
+  // Modallar
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
 
-  // Create form state
+  // Yeni teklif formu durumu
   interface FormItem {
     variantId: number;
     description: string;
@@ -308,7 +308,7 @@ export const QuotationsPage: React.FC = () => {
     }
   };
 
-  // Filtered quotations
+  // Filtrelenmiş teklifler
   const filteredQuotes = useMemo(() => {
     return quotations.filter((q) => {
       if (activeTab === 'SALES' && q.type !== 'SALES') return false;
@@ -328,7 +328,7 @@ export const QuotationsPage: React.FC = () => {
     });
   }, [quotations, activeTab, searchTerm]);
 
-  // Totals
+  // Toplamlar
   const totalAmountSum = useMemo(() => {
     return filteredQuotes.reduce((sum, q) => sum + (q.totalAmount || 0), 0);
   }, [filteredQuotes]);
@@ -339,7 +339,7 @@ export const QuotationsPage: React.FC = () => {
       .reduce((sum, q) => sum + (q.totalAmount || 0), 0);
   }, [filteredQuotes]);
 
-  // DataGrid Columns Definition
+  // Tablo sütun tanımları
   const columns: Column<Quotation>[] = [
     {
       id: 'quotationNumber',
@@ -363,17 +363,17 @@ export const QuotationsPage: React.FC = () => {
     },
     {
       id: 'type',
-      header: 'Teklif Türü',
-      width: '120px',
+      header: 'Teklif Yönü',
+      width: '150px',
       accessor: (q) => (
         <span
-          className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold border ${
+          className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold border ${
             q.type === 'SALES'
               ? 'bg-blue-50 text-blue-700 border-blue-200'
               : 'bg-purple-50 text-purple-700 border-purple-200'
           }`}
         >
-          {q.type === 'SALES' ? 'Satış Teklifi' : 'Alış Teklifi'}
+          {q.type === 'SALES' ? 'Verilen Teklif (Satış)' : 'Alınan Teklif (Alış)'}
         </span>
       ),
     },
@@ -420,7 +420,7 @@ export const QuotationsPage: React.FC = () => {
       {/* 1. DİA ERP Toolbar */}
       <ErpToolbar
         title="B2B Teklif Yönetimi"
-        subtitle="Müşteri & Tedarikçi Fiyat Teklifleri"
+        subtitle="Verilen (Satış) & Alınan (Satın Alma) Teklifleri"
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
         searchPlaceholder="Teklif no veya cari unvanı ile ara..."
@@ -480,8 +480,8 @@ export const QuotationsPage: React.FC = () => {
         <div className="flex items-center gap-1 text-xs">
           {[
             { id: 'ALL', label: 'Tümü' },
-            { id: 'SALES', label: 'Satış' },
-            { id: 'PURCHASE', label: 'Alış' },
+            { id: 'SALES', label: 'Verilen Teklifler (Satış)' },
+            { id: 'PURCHASE', label: 'Alınan Teklifler (Satın Alma)' },
             { id: 'ACCEPTED', label: 'Kabul Edilenler' },
             { id: 'DRAFT', label: 'Taslaklar' },
           ].map((tab) => (
@@ -637,7 +637,7 @@ export const QuotationsPage: React.FC = () => {
           {/* Üst Bilgiler */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-3 bg-slate-50 border border-slate-200 rounded">
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">Teklif Türü</label>
+              <label className="block font-semibold text-slate-700 mb-1">Teklif Yönü / Türü</label>
               <select
                 value={quoteType}
                 onChange={(e) => {
@@ -654,8 +654,8 @@ export const QuotationsPage: React.FC = () => {
                 }}
                 className="w-full h-8 text-xs bg-white border border-slate-300 rounded px-2.5 focus:outline-none focus:border-slate-800"
               >
-                <option value="SALES">Müşteri Satış Teklifi (Satış Fiyatları)</option>
-                <option value="PURCHASE">Tedarikçi Satın Alma Teklifi (Alış Fiyatları)</option>
+                <option value="SALES">Verilen Teklif (Satış - Müşteriye Gönderilen)</option>
+                <option value="PURCHASE">Alınan Teklif (Satın Alma - Tedarikçiden Gelen)</option>
               </select>
             </div>
 

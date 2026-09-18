@@ -15,7 +15,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, type, classNam
   }
 
   switch (status) {
-    // Inventory Stock Statuses
+    // Stok Durumları
     case 'Tükendi':
       return <Badge variant="destructive" className={className}>Tükendi</Badge>;
     case 'Kritik':
@@ -23,7 +23,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, type, classNam
     case 'Yeterli':
       return <Badge variant="success" className={className}>Yeterli</Badge>;
 
-    // Quotation Statuses
+    // Teklif Durumları
     case 'DRAFT':
       return <Badge variant="default" className={className}>Taslak</Badge>;
     case 'SENT':
@@ -37,7 +37,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, type, classNam
     case 'CONVERTED':
       return <Badge variant="purple" className={className}>Siparişe Dönüştü</Badge>;
 
-    // Order Statuses
+    // Sipariş Durumları
     case 'CONFIRMED':
       return <Badge variant="success" className={className}>Onaylandı (Stok Rezerve)</Badge>;
     case 'CANCELLED':
@@ -45,13 +45,13 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, type, classNam
     case 'COMPLETED':
       return <Badge variant="info" className={className}>Tamamlandı</Badge>;
 
-    // Waybill Statuses
+    // İrsaliye Durumları
     case 'DISPATCHED':
       return <Badge variant="warning" className={className}>Sevk Edildi (Yolda)</Badge>;
     case 'DELIVERED':
       return <Badge variant="success" className={className}>Teslim Edildi</Badge>;
 
-    // Partner Types
+    // Cari Türleri
     case 'CUSTOMER':
       return <Badge variant="info" className={className}>Müşteri</Badge>;
     case 'SUPPLIER':

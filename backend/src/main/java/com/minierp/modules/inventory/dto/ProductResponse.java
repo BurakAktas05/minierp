@@ -19,6 +19,9 @@ public class ProductResponse {
     private Long id;
     private Long categoryId;
     private String categoryName;
+    private Long partnerId;
+    private String partnerName;
+    private com.minierp.modules.inventory.entity.ProductType productType;
     private String name;
     private String code;
     private String baseUnit;

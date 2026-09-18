@@ -29,8 +29,9 @@ public class ProductController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<ProductResponse>>> getAllProducts() {
-        List<ProductResponse> products = productService.getAllProducts();
+    public ResponseEntity<ApiResponse<List<ProductResponse>>> getAllProducts(
+            @RequestParam(required = false) List<com.minierp.modules.inventory.entity.ProductType> types) {
+        List<ProductResponse> products = productService.getAllProducts(types);
         return ResponseEntity.ok(ApiResponse.success(products));
     }
 

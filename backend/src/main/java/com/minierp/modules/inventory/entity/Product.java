@@ -6,6 +6,8 @@ import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
+import com.minierp.modules.partner.entity.BusinessPartner;
+
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -24,6 +26,15 @@ import java.util.Map;
 @AllArgsConstructor
 @Builder
 public class Product extends BaseEntity {
+
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    @Column(name = "product_type", nullable = false, length = 30)
+    private ProductType productType = ProductType.FINISHED_GOOD;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "partner_id")
+    private BusinessPartner partner;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id")

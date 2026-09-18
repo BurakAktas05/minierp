@@ -49,7 +49,7 @@ export const WaybillsPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedWaybill, setSelectedWaybill] = useState<Waybill | null>(null);
 
-  // Modals
+  // Modallar
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [printModalOpen, setPrintModalOpen] = useState(false);
 
@@ -155,7 +155,7 @@ export const WaybillsPage: React.FC = () => {
     }
   };
 
-  // Filtered waybills
+  // Filtrelenmiş irsaliyeler
   const filteredWaybills = useMemo(() => {
     return waybills.filter((w) => {
       // 1. Yaşam Döngüsü / Durum Filtresi
@@ -178,7 +178,7 @@ export const WaybillsPage: React.FC = () => {
     });
   }, [waybills, statusFilter, typeFilter, searchTerm]);
 
-  // DataGrid Columns Definition
+  // Tablo sütun tanımları
   const columns: Column<Waybill>[] = [
     {
       id: 'waybillNumber',

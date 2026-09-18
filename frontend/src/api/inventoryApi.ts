@@ -15,6 +15,8 @@ export const inventoryApi = {
       taxRate: Number(p.taxRate ?? 20),
       categoryId: p.categoryId,
       categoryName: p.categoryName || (p.category ? p.category.name : ''),
+      productType: p.productType,
+      partnerId: p.partnerId,
       active: p.active !== false,
       attributes: p.attributes || {},
       variants: (p.variants || []).map((v: any) => ({

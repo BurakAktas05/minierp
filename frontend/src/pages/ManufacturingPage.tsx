@@ -49,56 +49,53 @@ export const ManufacturingPage: React.FC = () => {
   const { toast } = useToast();
   const [boms, setBoms] = useState<BillOfMaterials[]>([]);
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
-  const [variants, setVariants] = useState<ProductVariant[]>([]);
+  const [manufacturableVariants, setManufacturableVariants] = useState<ProductVariant[]>([]);
+  const [componentVariants, setComponentVariants] = useState<ProductVariant[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Nav tab
+  // Gezinme sekmesi
   const [activeTab, setActiveTab] = useState<'WORK_ORDERS' | 'BOMS'>('WORK_ORDERS');
   const [statusFilter, setStatusFilter] = useState<'ALL' | WorkOrderStatus>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Selected Detail Modals
+  // Seçili detay modalları
   const [selectedWo, setSelectedWo] = useState<WorkOrder | null>(null);
   const [selectedBom, setSelectedBom] = useState<BillOfMaterials | null>(null);
 
-  // Create Modals
+  // Oluşturma modalları
   const [isNewWoOpen, setIsNewWoOpen] = useState(false);
   const [isNewBomOpen, setIsNewBomOpen] = useState(false);
 
-  // New WO Form State
+  // Yeni iş emri formu durumu
   const [newWoBomId, setNewWoBomId] = useState<number | ''>('');
   const [newWoQty, setNewWoQty] = useState<number>(10);
   const [newWoPriority, setNewWoPriority] = useState('NORMAL');
   const [newWoNotes, setNewWoNotes] = useState('');
 
-  // New BOM Form State
+  // Yeni reçete formu durumu
   const [newBomName, setNewBomName] = useState('');
   const [newBomVariantId, setNewBomVariantId] = useState<number | ''>('');
   const [newBomQuantity, setNewBomQuantity] = useState<number>(1);
   const [newBomUnit, setNewBomUnit] = useState('ADET');
-  const [newBomIndustry, setNewBomIndustry] = useState('TEXTILE');
+  const [newBomIndustry, setNewBomIndustry] = useState('FURNITURE');
   const [newBomItems, setNewBomItems] = useState<Array<{ componentVariantId: number; quantity: number; unit: string }>>([]);
   const [selectedCompVariantId, setSelectedCompVariantId] = useState<number | ''>('');
   const [selectedCompQty, setSelectedCompQty] = useState<number>(1);
-  const [selectedCompUnit, setSelectedCompUnit] = useState('METRE');
+  const [selectedCompUnit, setSelectedCompUnit] = useState('ADET');
 
   const loadData = async () => {
     try {
       setLoading(true);
-      const [bomsData, woData, invData] = await Promise.all([
+      const [bomsData, woData, mfgVars, compVars] = await Promise.all([
         manufacturingApi.getBoms(),
         manufacturingApi.getWorkOrders(),
-        inventoryApi.getProducts(),
+        manufacturingApi.getManufacturableVariants(),
+        manufacturingApi.getComponentVariants(),
       ]);
       setBoms(bomsData);
       setWorkOrders(woData);
-
-      // Flatten variants for selection dropdowns
-      const allVars: ProductVariant[] = [];
-      invData.forEach((p) => {
-        if (p.variants) allVars.push(...p.variants);
-      });
-      setVariants(allVars);
+      setManufacturableVariants(mfgVars);
+      setComponentVariants(compVars);
     } catch (err) {
       console.error('Veriler yüklenirken hata oluştu:', err);
     } finally {
@@ -110,7 +107,7 @@ export const ManufacturingPage: React.FC = () => {
     loadData();
   }, []);
 
-  // Update WO status
+  // İş emri durumunu güncelle
   const handleUpdateWoStatus = async (woId: number, newStatus: WorkOrderStatus) => {
     try {
       await manufacturingApi.updateWorkOrderStatus(woId, newStatus);
@@ -125,7 +122,7 @@ export const ManufacturingPage: React.FC = () => {
     }
   };
 
-  // Submit New WO
+  // Yeni iş emri kaydet
   const handleCreateWo = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newWoBomId || newWoQty <= 0) {
@@ -149,7 +146,7 @@ export const ManufacturingPage: React.FC = () => {
     }
   };
 
-  // Submit New BOM
+  // Yeni reçete kaydet
   const handleCreateBom = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newBomName || !newBomVariantId || newBomItems.length === 0) {
@@ -198,7 +195,7 @@ export const ManufacturingPage: React.FC = () => {
     setSelectedCompQty(1);
   };
 
-  // Filtered Work Orders
+  // Filtrelenmiş iş emirleri
   const filteredWorkOrders = useMemo(() => {
     return workOrders.filter((wo) => {
       const matchesStatus = statusFilter === 'ALL' || wo.status === statusFilter;
@@ -210,7 +207,7 @@ export const ManufacturingPage: React.FC = () => {
     });
   }, [workOrders, statusFilter, searchTerm]);
 
-  // Statistics
+  // İstatistikler
   const stats = useMemo(() => {
     const totalBoms = boms.length;
     const activeWo = workOrders.filter((w) => w.status === 'PLANNED' || w.status === 'IN_PROGRESS').length;
@@ -219,7 +216,7 @@ export const ManufacturingPage: React.FC = () => {
     return { totalBoms, activeWo, completedWo, totalProduced };
   }, [boms, workOrders]);
 
-  // Grid Columns for Work Orders
+  // İş emirleri tablo sütun tanımları
   const woColumns: Column<WorkOrder>[] = [
     {
       id: 'orderNumber',
@@ -547,14 +544,24 @@ export const ManufacturingPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+              <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
                 <Button
                   size="sm"
                   variant="outline"
                   onClick={() => setSelectedBom(bom)}
-                  className="w-full text-xs border-slate-200 hover:bg-slate-50 text-slate-700 font-medium cursor-pointer"
+                  className="flex-1 text-xs border-slate-200 hover:bg-slate-50 text-slate-700 font-medium cursor-pointer"
                 >
-                  <Eye className="w-3.5 h-3.5 mr-1.5 text-slate-500" /> Reçete Detayı & Ağaç Yapısı
+                  <Eye className="w-3.5 h-3.5 mr-1 text-slate-500" /> Reçete Detayı
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setNewWoBomId(bom.id);
+                    setIsNewWoOpen(true);
+                  }}
+                  className="flex-1 text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-medium cursor-pointer shadow-xs"
+                >
+                  <Play className="w-3.5 h-3.5 mr-1" /> İş Emri Aç
                 </Button>
               </div>
             </div>
@@ -852,10 +859,10 @@ export const ManufacturingPage: React.FC = () => {
                 required
                 className="w-full bg-white border border-slate-300 rounded-md px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-indigo-500 font-medium"
               >
-                <option value="">-- Mamul Seçiniz --</option>
-                {variants.map((v) => (
+                <option value="">-- Üretilecek Nihai Mamul Seçiniz --</option>
+                {manufacturableVariants.map((v) => (
                   <option key={v.id} value={v.id}>
-                    {v.variantName ? `${v.variantName} (${v.sku})` : v.sku}
+                    [MAMUL] {v.variantName ? `${v.variantName} (${v.sku})` : v.sku}
                   </option>
                 ))}
               </select>
@@ -921,10 +928,10 @@ export const ManufacturingPage: React.FC = () => {
                   onChange={(e) => setSelectedCompVariantId(Number(e.target.value))}
                   className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-900"
                 >
-                  <option value="">-- Sarfiyat Varyantı Seçin --</option>
-                  {variants.map((v) => (
+                  <option value="">-- Sarfiyat Hammaddesi / Parçası Seçin --</option>
+                  {componentVariants.map((v) => (
                     <option key={v.id} value={v.id}>
-                      {v.variantName ? `${v.variantName} (${v.sku})` : v.sku}
+                      [HAMMADDE] {v.variantName ? `${v.variantName} (${v.sku})` : v.sku} {v.stockQuantity !== undefined ? `(Mevcut Stok: ${v.stockQuantity})` : ''}
                     </option>
                   ))}
                 </select>
@@ -961,7 +968,7 @@ export const ManufacturingPage: React.FC = () => {
             {newBomItems.length > 0 && (
               <div className="mt-2 space-y-1">
                 {newBomItems.map((it, idx) => {
-                  const v = variants.find((x) => x.id === it.componentVariantId);
+                  const v = componentVariants.find((x: ProductVariant) => x.id === it.componentVariantId);
                   return (
                     <div key={idx} className="flex items-center justify-between p-1.5 bg-white border border-slate-200 rounded text-xs">
                       <span>{v ? (v.variantName ? `${v.variantName} (${v.sku})` : v.sku) : `Varyant #${it.componentVariantId}`}</span>

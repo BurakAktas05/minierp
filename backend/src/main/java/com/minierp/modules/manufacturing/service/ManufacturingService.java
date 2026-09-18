@@ -22,4 +22,8 @@ public interface ManufacturingService {
     WorkOrderDto updateWorkOrderStatus(Long id, WorkOrderStatus status);
 
     List<SectorTemplateDto> getSectorTemplates();
+
+    List<com.minierp.modules.inventory.dto.ProductVariantResponse> getManufacturableVariants();
+
+    List<com.minierp.modules.inventory.dto.ProductVariantResponse> getComponentVariants();
 }

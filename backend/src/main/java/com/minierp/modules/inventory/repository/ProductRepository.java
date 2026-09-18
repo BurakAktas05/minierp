@@ -18,9 +18,12 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
     List<Product> findByCategoryId(Long categoryId);
 
-    @Query("SELECT p FROM Product p LEFT JOIN FETCH p.variants LEFT JOIN FETCH p.category WHERE p.id = :id")
+    @Query("SELECT p FROM Product p LEFT JOIN FETCH p.variants LEFT JOIN FETCH p.category LEFT JOIN FETCH p.partner WHERE p.id = :id")
     Optional<Product> findByIdWithVariants(@Param("id") Long id);
 
-    @Query("SELECT DISTINCT p FROM Product p LEFT JOIN FETCH p.variants LEFT JOIN FETCH p.category ORDER BY p.id DESC")
+    @Query("SELECT DISTINCT p FROM Product p LEFT JOIN FETCH p.variants LEFT JOIN FETCH p.category LEFT JOIN FETCH p.partner ORDER BY p.id DESC")
     List<Product> findAllWithVariants();
+
+    @Query("SELECT DISTINCT p FROM Product p LEFT JOIN FETCH p.variants LEFT JOIN FETCH p.category LEFT JOIN FETCH p.partner WHERE p.productType IN :types ORDER BY p.id DESC")
+    List<Product> findByProductTypeInWithVariants(@Param("types") List<com.minierp.modules.inventory.entity.ProductType> types);
 }

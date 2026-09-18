@@ -21,6 +21,9 @@ public interface ProductVariantMapper {
     ProductVariant toEntity(ProductVariantRequest request);
 
     @Mapping(target = "productId", source = "product.id")
+    @Mapping(target = "productName", source = "product.name")
+    @Mapping(target = "productType", source = "product.productType")
+    @Mapping(target = "partnerName", source = "product.partner.name")
     @Mapping(target = "availableStock", source = "availableStock")
     ProductVariantResponse toResponse(ProductVariant entity);
 

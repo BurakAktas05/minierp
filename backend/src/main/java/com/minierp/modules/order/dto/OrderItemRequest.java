@@ -25,9 +25,8 @@ public class OrderItemRequest {
     @Min(value = 1, message = "Miktar en az 1 olmalıdır")
     private Integer quantity;
 
-    @NotNull(message = "Birim fiyat boş bırakılamaz")
     @DecimalMin(value = "0.0", inclusive = true, message = "Birim fiyat negatif olamaz")
-    private BigDecimal unitPrice;
+    private BigDecimal unitPrice; // null ise cari fiyat listesinden veya ürün varsayılan fiyatından çözümlenir
 
     @Builder.Default
     @DecimalMin(value = "0.0", inclusive = true, message = "KDV oranı negatif olamaz")

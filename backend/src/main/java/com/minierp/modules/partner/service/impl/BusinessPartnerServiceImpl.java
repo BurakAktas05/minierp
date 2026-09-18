@@ -48,6 +48,10 @@ public class BusinessPartnerServiceImpl implements BusinessPartnerService {
             throw new BusinessException("Bu cari kodu zaten kullanılıyor: " + partner.getCode());
         }
 
+        if (partner.getPartnerType() == null) {
+            partner.setPartnerType(PartnerType.BOTH);
+        }
+
         BusinessPartner saved = businessPartnerRepository.save(partner);
         log.info("Yeni cari hesap kaydedildi: ID={}, Kod={}, Ad={}, Tür={}", saved.getId(), saved.getCode(), saved.getName(), saved.getPartnerType());
 

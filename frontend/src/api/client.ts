@@ -1,6 +1,6 @@
 import axios, { AxiosError } from 'axios';
 
-// Storage keys
+// Tarayıcı yerel depolama anahtarları
 export const TOKEN_KEY = 'minierp_token';
 export const TENANT_KEY = 'minierp_tenant_id';
 export const USER_KEY = 'minierp_user';
@@ -15,7 +15,7 @@ export const apiClient = axios.create({
   timeout: 10000,
 });
 
-// Request Interceptor: Attach JWT and Tenant ID
+// İstek Araya Girici (Request Interceptor): JWT ve Kiracı Kimliğini (Tenant ID) ekle
 apiClient.interceptors.request.use((config) => {
   const token = localStorage.getItem(TOKEN_KEY);
   const tenantId = localStorage.getItem(TENANT_KEY) || 'tenant_tekstil';
@@ -29,10 +29,10 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
-// Response Interceptor: Unwrap ApiResponse<T> (res.data.data) and handle 401
+// Yanıt Araya Girici (Response Interceptor): ApiResponse zarfını aç ve 401 yetkisiz durumunu yönet
 apiClient.interceptors.response.use(
   (response) => {
-    // If backend returns ApiResponse<T> { success: true, data: ... }
+    // Backend standart ApiResponse<T> ({ success: true, data: ... }) dönerse iç veriyi al
     if (response.data && typeof response.data === 'object' && 'success' in response.data) {
       return {
         ...response,
@@ -43,7 +43,7 @@ apiClient.interceptors.response.use(
   },
   (error: AxiosError) => {
     if (error.response?.status === 401) {
-      // Clear credentials on 401
+      // 401 oturum zaman aşımında yerel oturum bilgilerini temizle ve yönlendir
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem(USER_KEY);
       if (window.location.pathname !== '/login') {

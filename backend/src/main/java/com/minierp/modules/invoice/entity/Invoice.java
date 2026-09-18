@@ -122,7 +122,7 @@ public class Invoice extends BaseEntity {
 
         if (totalPaid.compareTo(BigDecimal.ZERO) == 0) {
             if (this.status != InvoiceStatus.DRAFT && this.status != InvoiceStatus.CANCELLED) {
-                // Keep current status if no payment yet
+                // Henüz ödeme yapılmamışsa mevcut durumu koru
             }
         } else if (totalPaid.compareTo(this.totalAmount) >= 0) {
             this.status = InvoiceStatus.PAID;

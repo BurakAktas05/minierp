@@ -44,29 +44,29 @@ export const InventoryPage: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // View Mode: 'SKU' = Flat Variant list (standard warehouse/sales grid), 'PRODUCT' = Master Product Cards
+  // Görünüm Modu: 'SKU' = Düz Varyant Listesi, 'PRODUCT' = Ana Ürün Kartları
   const [viewMode, setViewMode] = useState<'SKU' | 'PRODUCT'>('SKU');
 
-  // Filters
+  // Filtreler
   const [activeTab, setActiveTab] = useState<'ALL' | 'IN_STOCK' | 'OUT_OF_STOCK'>('ALL');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Selected row state
+  // Seçili satır durumu
   const [selectedVariant, setSelectedVariant] = useState<FlattenedVariantItem | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
-  // Modals
+  // Modallar
   const [createProductModalOpen, setCreateProductModalOpen] = useState(false);
   const [addVariantModalOpen, setAddVariantModalOpen] = useState(false);
   const [stockModalOpen, setStockModalOpen] = useState(false);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
 
-  // Stock Adjustment Form
+  // Stok Düzeltme Formu
   const [stockActionType, setStockActionType] = useState<'ADD' | 'SUBTRACT' | 'RESERVE' | 'RELEASE'>('ADD');
   const [stockAdjustmentAmount, setStockAdjustmentAmount] = useState<number>(10);
 
-  // Create Product Form State
+  // Yeni Ürün Formu Durumu
   const [newCode, setNewCode] = useState('');
   const [newName, setNewName] = useState('');
   const [newDescription, setNewDescription] = useState('');
@@ -83,7 +83,7 @@ export const InventoryPage: React.FC = () => {
     { size: 'L', color: 'Siyah', sku: 'PRD-L-BLK', barcode: '8690001002', initialStock: 50 },
   ]);
 
-  // Add Variant Form State
+  // Yeni Varyant Formu Durumu
   const [newVariantSku, setNewVariantSku] = useState('');
   const [newVariantName, setNewVariantName] = useState('');
   const [newVariantBarcode, setNewVariantBarcode] = useState('');
@@ -107,7 +107,7 @@ export const InventoryPage: React.FC = () => {
         setNewCategoryId(catList[0].id);
       }
 
-      // Maintain selection
+      // Seçimi koru
       if (selectedProduct) {
         const updatedP = prodList.find((p) => p.id === selectedProduct.id);
         setSelectedProduct(updatedP || null);
@@ -138,7 +138,7 @@ export const InventoryPage: React.FC = () => {
     loadData();
   }, []);
 
-  // Flatten all variants with their parent products
+  // Tüm varyantları ana ürün bilgileriyle düzleştir
   const allFlattenedVariants = useMemo<FlattenedVariantItem[]>(() => {
     return products.flatMap((p) =>
       p.variants.map((v) => ({
@@ -153,20 +153,20 @@ export const InventoryPage: React.FC = () => {
     );
   }, [products]);
 
-  // Filtered SKU list
+  // Filtrelenmiş SKU listesi
   const filteredVariants = useMemo(() => {
     return allFlattenedVariants.filter((v) => {
-      // Category
+      // Kategori filtresi
       if (selectedCategory !== 'ALL') {
         const prod = products.find((p) => p.id === v.productId);
         if (prod && String(prod.categoryId) !== selectedCategory) return false;
       }
 
-      // Status Tabs
+      // Durum sekmeleri
       if (activeTab === 'IN_STOCK' && v.stockQuantity <= 0) return false;
       if (activeTab === 'OUT_OF_STOCK' && v.stockQuantity > 0) return false;
 
-      // Search term
+      // Arama terimi filtresi
       if (searchTerm) {
         const term = searchTerm.toLowerCase();
         return (
@@ -182,7 +182,7 @@ export const InventoryPage: React.FC = () => {
     });
   }, [allFlattenedVariants, products, selectedCategory, activeTab, searchTerm]);
 
-  // Filtered Products list (for Master Product mode)
+  // Filtrelenmiş ana ürün listesi (Ürün Kartları modu için)
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {
       if (selectedCategory !== 'ALL' && String(p.categoryId) !== selectedCategory) return false;
@@ -204,7 +204,7 @@ export const InventoryPage: React.FC = () => {
     });
   }, [products, selectedCategory, activeTab, searchTerm]);
 
-  // Financial and Stock Summary Metrics
+  // Finansal ve stok özet metrikleri
   const summaryMetrics = useMemo(() => {
     const list = filteredVariants;
     const totalPhysical = list.reduce((sum, v) => sum + (v.stockQuantity || 0), 0);
@@ -216,7 +216,9 @@ export const InventoryPage: React.FC = () => {
     );
 
     return { totalPhysical, totalReserved, totalAvailable, totalValuation };
-  }, [filteredVariants]);  // Handler: Open Quick Stock Modal
+  }, [filteredVariants]);
+
+  // Hızlı stok hareketi modalını aç
   const handleOpenStockModal = (type: 'ADD' | 'SUBTRACT' | 'RESERVE' | 'RELEASE') => {
     if (!selectedVariant) {
       toast.warning('Lütfen stok işlemi yapmak istediğiniz satırı seçiniz.');
@@ -227,7 +229,7 @@ export const InventoryPage: React.FC = () => {
     setStockModalOpen(true);
   };
 
-  // Handler: Stock Submit
+  // Stok hareketi kaydet
   const handleStockSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedVariant) return;
@@ -252,7 +254,7 @@ export const InventoryPage: React.FC = () => {
     }
   };
 
-  // Handler: Open Add Variant Modal
+  // Yeni varyant modalını aç
   const handleOpenAddVariant = () => {
     const targetProduct =
       selectedProduct ||
@@ -276,7 +278,7 @@ export const InventoryPage: React.FC = () => {
     setAddVariantModalOpen(true);
   };
 
-  // Handler: Submit New Variant
+  // Yeni varyant kaydet
   const handleAddVariantSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedProduct || !newVariantSku || !newVariantName) return;
@@ -302,7 +304,7 @@ export const InventoryPage: React.FC = () => {
     }
   };
 
-  // Create Product Submit
+  // Yeni ürün kartı kaydet
   const handleCreateProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCode || !newName) return;
@@ -344,7 +346,7 @@ export const InventoryPage: React.FC = () => {
     }
   };
 
-  // Columns for SKU / Variant Flat Grid (High-density DİA ERP View)
+  // SKU / Varyant Düz Liste Tablo Sütunları
   const skuColumns: Column<FlattenedVariantItem>[] = [
     {
       id: 'productCode',
@@ -461,7 +463,7 @@ export const InventoryPage: React.FC = () => {
     },
   ];
 
-  // Columns for Master Products Grid
+  // Ana Ürün Kartları Tablo Sütunları
   const productColumns: Column<Product>[] = [
     {
       id: 'code',

@@ -17,7 +17,7 @@ import java.time.OffsetDateTime;
 @AllArgsConstructor
 public class CreatePaymentRequest {
 
-    @NotNull(message = "Fatura ID boş bırakılamaz")
+    // Opsiyonel: URL path üzerinden (@PathVariable invoiceId) veya gövdeden atanabilir
     private Long invoiceId;
 
     @NotNull(message = "Ödeme tutarı boş bırakılamaz")

@@ -6,6 +6,7 @@ import {
   CreateWorkOrderRequest,
   WorkOrderStatus,
   SectorTemplate,
+  ProductVariant,
 } from '../types';
 
 export const manufacturingApi = {
@@ -25,6 +26,16 @@ export const manufacturingApi = {
   createBom: async (data: CreateBomRequest): Promise<BillOfMaterials> => {
     const res = await apiClient.post<BillOfMaterials>('/manufacturing/boms', data);
     return res.data;
+  },
+
+  getManufacturableVariants: async (): Promise<ProductVariant[]> => {
+    const res = await apiClient.get<ProductVariant[]>('/manufacturing/manufacturable-variants');
+    return Array.isArray(res.data) ? res.data : [];
+  },
+
+  getComponentVariants: async (): Promise<ProductVariant[]> => {
+    const res = await apiClient.get<ProductVariant[]>('/manufacturing/component-variants');
+    return Array.isArray(res.data) ? res.data : [];
   },
 
   // 2. Üretim İş Emirleri (Work Orders)

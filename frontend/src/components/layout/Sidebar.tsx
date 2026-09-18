@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, Link } from 'react-router-dom';
 import {
   LayoutDashboard,
   Package,
@@ -43,6 +43,7 @@ export const Sidebar: React.FC = () => {
   // 3. TANIMLAR & SİSTEM (Nadir kullanılan ayarlar / yapılandırma)
   const systemSetupItems = [
     { name: 'Ürün Kategorileri', path: '/categories', icon: FolderTree },
+    { name: 'Sistem Mimarisi & ER', path: '/info', icon: Layers },
   ];
 
   if (isAdmin) {
@@ -54,13 +55,18 @@ export const Sidebar: React.FC = () => {
   return (
     <aside className="w-64 flex-shrink-0 bg-slate-900 text-slate-100 flex flex-col h-screen border-r border-slate-800 select-none">
       {/* 1. Logo & Marka Başlığı */}
-      <div className="h-16 px-5 flex items-center gap-3 border-b border-slate-800">
-        <div className="w-8 h-8 rounded bg-white text-slate-900 flex items-center justify-center font-bold text-sm shadow-sm">
+      <Link
+        to="/"
+        className="h-16 px-5 flex items-center gap-3 border-b border-slate-800 hover:bg-slate-800/40 transition-colors cursor-pointer group"
+      >
+        <div className="w-8 h-8 rounded bg-white text-slate-900 flex items-center justify-center font-bold text-sm shadow-sm group-hover:scale-105 transition-transform">
           <Layers className="w-5 h-5 text-slate-900" />
         </div>
         <div>
           <div className="flex items-center gap-1.5">
-            <span className="font-bold text-sm tracking-tight text-white">MiniERP</span>
+            <span className="font-bold text-sm tracking-tight text-white group-hover:text-indigo-300 transition-colors">
+              MiniERP
+            </span>
             <span className="text-[10px] uppercase font-semibold tracking-wider bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded border border-slate-700">
               B2B
             </span>
@@ -69,7 +75,7 @@ export const Sidebar: React.FC = () => {
             {currentTenantObj ? currentTenantObj.name : activeTenant}
           </p>
         </div>
-      </div>
+      </Link>
 
       {/* 2. Aktif Kiracı (Tenant) Şema Seçici */}
       <div className="px-4 py-2.5 border-b border-slate-800 bg-slate-950/40">
@@ -107,6 +113,7 @@ export const Sidebar: React.FC = () => {
                 <NavLink
                   key={item.path}
                   to={item.path}
+                  end={item.path === '/'}
                   className={({ isActive }) =>
                     `flex items-center justify-between px-3 py-2 text-xs font-medium rounded-md transition-colors ${
                       isActive

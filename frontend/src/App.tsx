@@ -11,10 +11,13 @@ import { CategoriesPage } from './pages/CategoriesPage';
 import { PartnersPage } from './pages/PartnersPage';
 import { QuotationsPage } from './pages/QuotationsPage';
 import { OrdersPage } from './pages/OrdersPage';
+import { OrderCreatePage } from './pages/OrderCreatePage';
 import { WaybillsPage } from './pages/WaybillsPage';
 import { InvoicesPage } from './pages/InvoicesPage';
+import { InvoiceCreatePage } from './pages/InvoiceCreatePage';
 import { AuditLogsPage } from './pages/AuditLogsPage';
 import { ManufacturingPage } from './pages/ManufacturingPage';
+import { SystemInfoPage } from './pages/SystemInfoPage';
 
 // Protected Route Guard
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -49,10 +52,13 @@ export const App: React.FC = () => {
               <Route path="partners" element={<PartnersPage />} />
               <Route path="quotations" element={<QuotationsPage />} />
               <Route path="orders" element={<OrdersPage />} />
+              <Route path="orders/new" element={<OrderCreatePage />} />
               <Route path="waybills" element={<WaybillsPage />} />
               <Route path="invoices" element={<InvoicesPage />} />
+              <Route path="invoices/new" element={<InvoiceCreatePage />} />
               <Route path="manufacturing" element={<ManufacturingPage />} />
               <Route path="audit-logs" element={<AuditLogsPage />} />
+              <Route path="info" element={<SystemInfoPage />} />
             </Route>
 
             {/* Fallback to Home */}

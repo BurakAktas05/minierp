@@ -65,12 +65,12 @@ export const OrdersPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
-  // Modals
+  // Modallar
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [printModalOpen, setPrintModalOpen] = useState(false);
 
-  // Create Order form state
+  // Yeni sipariş formu durumu
   interface OrderFormItem {
     variantId: number;
     description: string;
@@ -343,7 +343,7 @@ export const OrdersPage: React.FC = () => {
     }
   };
 
-  // Filtered orders
+  // Filtrelenmiş siparişler
   const filteredOrders = useMemo(() => {
     return orders.filter((ord) => {
       if (activeTab === 'SALES' && ord.type !== 'SALES_ORDER') return false;
@@ -364,7 +364,7 @@ export const OrdersPage: React.FC = () => {
     });
   }, [orders, activeTab, searchTerm]);
 
-  // Totals
+  // Toplamlar
   const totalAmountSum = useMemo(() => {
     return filteredOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
   }, [filteredOrders]);
@@ -375,7 +375,7 @@ export const OrdersPage: React.FC = () => {
       .reduce((sum, o) => sum + (o.totalAmount || 0), 0);
   }, [filteredOrders]);
 
-  // DataGrid Columns Definition
+  // Tablo sütun tanımları
   const columns: Column<Order>[] = [
     {
       id: 'orderNumber',
@@ -465,7 +465,7 @@ export const OrdersPage: React.FC = () => {
           {
             label: 'Yeni Sipariş',
             icon: <Plus className="w-3.5 h-3.5 text-white" />,
-            onClick: () => setCreateModalOpen(true),
+            onClick: () => navigate('/orders/new'),
             variant: 'primary',
           },
           {
@@ -571,14 +571,14 @@ export const OrdersPage: React.FC = () => {
         isOpen={detailModalOpen}
         onClose={() => setDetailModalOpen(false)}
         title={`Sipariş Fişi İnceleme — ${selectedOrder?.orderNumber || ''}`}
-        description="Sipariş başlık bilgileri, rezerve edilen kalemler, sevk durumu ve finansal icmal"
+        description="Sipariş başlık bilgileri, rezerve edilen kalemler ve finansal icmal"
         maxWidth="4xl"
       >
         {selectedOrder && (() => {
-          const totalQty = (selectedOrder.items || []).reduce((acc, it) => acc + (it.quantity || 0), 0);
-          const deliveredQty = (selectedOrder.items || []).reduce((acc, it) => acc + (it.deliveredQuantity || 0), 0);
+          const totalQty = (selectedOrder.items || []).reduce((s, it) => s + (it.quantity || 0), 0);
+          const deliveredQty = (selectedOrder.items || []).reduce((s, it) => s + (it.deliveredQuantity || 0), 0);
           const remainingQty = Math.max(0, totalQty - deliveredQty);
-          const fulfillmentPct = totalQty > 0 ? Math.round((deliveredQty / totalQty) * 100) : 0;
+          const fulfillmentPct = totalQty > 0 ? Math.min(100, Math.round((deliveredQty / totalQty) * 100)) : 0;
 
           return (
             <div className="space-y-4">
@@ -615,19 +615,9 @@ export const OrdersPage: React.FC = () => {
                     <span className="text-slate-500 font-medium">Teslim Tarihi:</span>
                     <span className="font-mono font-semibold text-slate-700">{formatDate(selectedOrder.deliveryDate)}</span>
                   </div>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="text-[11px] text-slate-500">Sevk Durumu:</span>
-                    <span
-                      className={`font-mono text-xs font-bold px-2 py-0.5 rounded border ${
-                        fulfillmentPct === 100
-                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                          : fulfillmentPct > 0
-                          ? 'bg-amber-50 text-amber-700 border-amber-200'
-                          : 'bg-slate-100 text-slate-600 border-slate-200'
-                      }`}
-                    >
-                      %{fulfillmentPct} Tamamlandı
-                    </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-slate-500 font-medium">Sevkiyat Deposu:</span>
+                    <span className="font-mono text-xs font-semibold text-slate-700">WH-MRK-01 (Merkez Ana Depo)</span>
                   </div>
                 </div>
               </div>
@@ -639,64 +629,70 @@ export const OrdersPage: React.FC = () => {
                     <Layers className="w-3.5 h-3.5 text-slate-500" />
                     Sipariş Kalemleri ({selectedOrder.items?.length || 0})
                   </h4>
-                  <span className="text-[11px] text-slate-500 font-medium">Rezerve edilen ve sevk bekleyen ürünler</span>
+                  <span className="text-[11px] text-slate-500 font-medium">Rezerve edilen ürün kalemleri</span>
                 </div>
                 <div className="border border-slate-200 rounded-lg overflow-hidden shadow-2xs">
                   <table className="w-full text-xs text-left border-collapse">
-                    <thead className="bg-slate-100 text-slate-700 border-b border-slate-200">
+                    <thead className="bg-slate-100 border-b border-slate-200 text-slate-700 font-semibold text-[11px] uppercase">
                       <tr>
-                        <th className="p-2.5 w-10 text-center border-r border-slate-200">#</th>
-                        <th className="p-2.5 border-r border-slate-200">Ürün / SKU</th>
-                        <th className="p-2.5 border-r border-slate-200">Açıklama</th>
-                        <th className="p-2.5 text-right border-r border-slate-200 w-24">Sipariş</th>
-                        <th className="p-2.5 text-center border-r border-slate-200 w-28">Sevk / Kalan</th>
-                        <th className="p-2.5 text-right border-r border-slate-200 w-28">Birim Fiyat</th>
-                        <th className="p-2.5 text-right w-32">Kalem Toplamı</th>
+                        <th className="p-2.5 w-10 text-center">#</th>
+                        <th className="p-2.5">Ürün / Varyant Açıklaması</th>
+                        <th className="p-2.5 w-24 text-right">Sipariş</th>
+                        <th className="p-2.5 w-24 text-center">Sevk / Kalan</th>
+                        <th className="p-2.5 w-28 text-right">Birim Fiyat</th>
+                        <th className="p-2.5 w-16 text-right">KDV %</th>
+                        <th className="p-2.5 w-32 text-right">Toplam</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {(selectedOrder.items || []).map((item, idx) => {
-                        const delivered = item.deliveredQuantity || 0;
-                        const remaining = Math.max(0, item.quantity - delivered);
-                        return (
-                          <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                            <td className="p-2.5 text-center border-r border-slate-100 font-mono text-slate-400">
-                              {idx + 1}
-                            </td>
-                            <td className="p-2.5 border-r border-slate-100 font-mono font-bold text-slate-900">
-                              {item.variantSku || item.productName || `Varyant #${item.variantId}`}
-                            </td>
-                            <td className="p-2.5 border-r border-slate-100 text-slate-600">
-                              {item.productName || item.description || '-'}
-                            </td>
-                            <td className="p-2.5 text-right font-mono font-bold text-slate-900 border-r border-slate-100">
-                              {item.quantity} adet
-                            </td>
-                            <td className="p-2.5 text-center border-r border-slate-100 font-mono text-[11px]">
-                              <span className="text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
-                                {delivered}
-                              </span>
-                              <span className="text-slate-400 mx-1">/</span>
-                              <span
-                                className={`px-1.5 py-0.5 rounded border font-bold ${
-                                  remaining > 0
-                                    ? 'bg-amber-50 text-amber-700 border-amber-200'
-                                    : 'bg-slate-100 text-slate-400 border-slate-200'
-                                }`}
-                              >
-                                {remaining}
-                              </span>
-                            </td>
-                            <td className="p-2.5 text-right font-mono text-slate-700 border-r border-slate-100">
-                              {formatCurrency(item.unitPrice)}
-                            </td>
-                            <td className="p-2.5 text-right font-mono font-bold text-slate-900">
-                              {formatCurrency(item.lineTotal || item.quantity * item.unitPrice)}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                      {(!selectedOrder.items || selectedOrder.items.length === 0) && (
+                    <tbody className="divide-y divide-slate-200 bg-white">
+                      {selectedOrder.items && selectedOrder.items.length > 0 ? (
+                        selectedOrder.items.map((it, idx) => {
+                          const delivered = it.deliveredQuantity || 0;
+                          const remaining = Math.max(0, it.quantity - delivered);
+                          const lineTot =
+                            (it.quantity || 0) * (it.unitPrice || 0) * (1 + (it.taxRate || 20) / 100);
+                          return (
+                            <tr key={it.id || idx} className="hover:bg-slate-50/70">
+                              <td className="p-2.5 text-center font-mono text-slate-400">{idx + 1}</td>
+                              <td className="p-2.5 font-medium text-slate-900">
+                                {it.description || it.productName || it.variantName || 'Ürün Kalemi'}
+                                {it.variantSku && (
+                                  <span className="block font-mono text-[10px] text-slate-400">
+                                    SKU: {it.variantSku}
+                                  </span>
+                                )}
+                              </td>
+                              <td className="p-2.5 text-right font-mono font-bold text-slate-900">
+                                {it.quantity} Adet
+                              </td>
+                              <td className="p-2.5 text-center font-mono text-[11px]">
+                                <span className="text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                                  {delivered}
+                                </span>
+                                <span className="text-slate-400 mx-1">/</span>
+                                <span
+                                  className={`px-1.5 py-0.5 rounded border font-bold ${
+                                    remaining > 0
+                                      ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                      : 'bg-slate-100 text-slate-400 border-slate-200'
+                                  }`}
+                                >
+                                  {remaining}
+                                </span>
+                              </td>
+                              <td className="p-2.5 text-right font-mono text-slate-700">
+                                {formatCurrency(it.unitPrice)}
+                              </td>
+                              <td className="p-2.5 text-right font-mono text-slate-600">
+                                %{it.taxRate || 20}
+                              </td>
+                              <td className="p-2.5 text-right font-mono font-bold text-slate-900">
+                                {formatCurrency(lineTot)}
+                              </td>
+                            </tr>
+                          );
+                        })
+                      ) : (
                         <tr>
                           <td colSpan={7} className="p-4 text-center text-slate-400">
                             Bu siparişe ait kalem kaydı bulunamadı.
@@ -708,9 +704,9 @@ export const OrdersPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* 3. Alt Bölüm: Sol (Sevk İlerlemesi & Notlar) + Sağ (Finansal İcmal) */}
+              {/* 3. Alt Bölüm: Sol (Sevkiyat İlerlemesi & Notlar) + Sağ (Finansal İcmal) */}
               <div className="grid grid-cols-1 md:grid-cols-12 gap-4 pt-2">
-                {/* Sol Kolon: Sevk İlerlemesi & Fiş Notları */}
+                {/* Sol Kolon: Fiş Notları & Lojistik İlerleme */}
                 <div className="md:col-span-7 space-y-3">
                   <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs space-y-2">
                     <div className="flex items-center justify-between font-semibold text-slate-700">
@@ -736,8 +732,8 @@ export const OrdersPage: React.FC = () => {
                       ></div>
                     </div>
                     <div className="flex justify-between text-[11px] text-slate-500 pt-0.5">
-                      <span>Kalan Sevk Bekleyen: <strong className="font-mono text-amber-700">{remainingQty} adet</strong></span>
-                      <span>Teslim Edilen: <strong className="font-mono text-emerald-700">{deliveredQty} adet</strong></span>
+                      <span>Kalan Sevk Bekleyen: <strong className="font-mono text-amber-700">{remainingQty} Adet</strong></span>
+                      <span>Fiilen Sevk Edilen: <strong className="font-mono text-emerald-700">{deliveredQty} Adet</strong></span>
                     </div>
                   </div>
 
